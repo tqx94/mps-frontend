@@ -1,0 +1,247 @@
+// ---------- Datasource & Generator ----------
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------- Enums ----------
+enum MemberType {
+  STUDENT
+  MEMBER
+  TUTOR
+  ADMIN
+}
+
+
+
+enum VerificationStatus {
+  NA
+  PENDING
+  VERIFIED
+}
+
+// ---------- Users (M3) ----------
+model User {
+  id                        String             @id @default(uuid()) @db.Uuid
+  email                     String             @unique
+  firstName                 String?
+  lastName                  String?
+  memberType                MemberType         @default(MEMBER)
+  contactNumber             String?
+  studentVerificationStatus String?            @default("PENDING") // PENDING, VERIFIED, REJECTED, NA
+  
+  // Student verification fields (matching existing DB schema)
+  studentVerificationImageUrl String?         // URL to uploaded document in Supabase Storage
+  studentVerificationDate     DateTime?       // When verification was processed
+  studentRejectionReason      String?         // Reason for rejection if rejected
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  bookings            Booking[]
+  discountRedemptions DiscountRedemption[]
+  userPasses          UserPass[]
+
+  @@index([memberType])
+  @@index([email])
+  @@index([studentVerificationStatus])
+}
+
+// ---------- Bookings (M2) ----------
+model Booking {
+  id         String  @id @default(uuid()) @db.Uuid
+  bookingRef String  @unique
+  userId     String? @db.Uuid
+  location   String
+
+  bookedAt        DateTime @default(now())
+  startAt         DateTime
+  endAt           DateTime
+  specialRequests String?  @db.Text
+
+  seatNumbers String[]
+  pax         Int
+  students    Int
+  members     Int
+  tutors      Int
+
+  totalCost       Decimal    @db.Decimal(12, 2)
+  promoCodeId     String?    @db.Uuid
+  discountAmount  Decimal?   @db.Decimal(12, 2)
+  totalAmount     Decimal    @db.Decimal(12, 2)
+  memberType      MemberType
+  bookedForEmails String[]
+
+  //payments 
+  confirmedPayment Boolean  @default(false)
+  paymentId        String?  @unique @db.Uuid
+  payment          Payment? @relation("BookingPayment", fields: [paymentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  user        User?                @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  discount    Discount?            @relation("BookingDiscount", fields: [promoCodeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  passUses    BookingPassUse[]
+  redemptions DiscountRedemption[] // <— back-relation for DiscountRedemption.booking
+
+  @@index([userId])
+  @@index([startAt])
+  @@index([endAt])
+  @@index([promoCodeId])
+  @@index([userId, startAt]) // helpful for "my upcoming bookings"
+  @@index([startAt, endAt])
+  @@index([paymentId])
+}
+
+// ---------- Payments ----------
+model Payment {
+  id      String   @id @default(uuid()) @db.Uuid
+  booking Booking? @relation("BookingPayment") // back-ref ONLY (no fields/references)
+
+  // Optional mirror fields (denormalized for reporting)
+  bookingRef String? // if you want to store the human ref too
+  startAt    DateTime?
+  endAt      DateTime?
+
+  // Money fields
+  cost         Decimal? @db.Decimal(12, 2)
+  discountCode String?
+  totalAmount  Decimal? @db.Decimal(12, 2)
+
+  // Who/when
+  paidBy    String? // email or name; change to userId if you prefer
+  paidAt    DateTime? // "payment timestamp"
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+// ---------- Promo Codes Catalog ----------
+model Discount {
+  id               String       @id @default(uuid()) @db.Uuid
+  code             String       @unique
+  name             String
+  description      String?
+  discounttype     String       // PERCENTAGE or FIXED_AMOUNT
+  discountvalue    Decimal      @db.Decimal(12, 2)
+  minimumamount    Decimal?     @db.Decimal(12, 2)
+  maximumdiscount  Decimal?     @db.Decimal(12, 2)
+  maxusageperuser  Int          @default(1)
+  maxtotalusage    Int?
+  currentusage     Int          @default(0)
+  activefrom       DateTime?
+  activeto         DateTime?
+  isactive         Boolean      @default(true)
+  category         String?      // STUDENT, GENERAL, etc.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  redemptions DiscountRedemption[]
+  bookings    Booking[]            @relation("BookingDiscount") // <— back-relation for Booking.discount
+
+  @@index([isactive, activefrom, activeto])
+  @@index([category])
+}
+
+// ---------- Promo Code Redemptions (who used which code) ----------
+model DiscountRedemption {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @db.Uuid
+  discountId       String   @db.Uuid
+  bookingId        String?  @db.Uuid
+  amountDiscounted Decimal? @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  booking  Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([userId])
+  @@index([discountId])
+  @@index([bookingId])
+}
+
+// ---------- Pass Products (catalog: passes available to purchase) ----------
+model PassProduct {
+  id              String      @id @default(uuid()) @db.Uuid
+  packageName     String
+  typeOfPass      String // keep flexible (e.g., SINGLE, PACKAGE, HOURLY, DAY_PASS)
+  durationMinutes Int // duration per booking
+  activeFrom      DateTime?
+  activeTo        DateTime?
+  availableQty    Int? // optional global cap
+  eligibleMember  MemberType? // leave null if open to all
+  isActive        Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  purchases UserPass[]
+
+  @@index([isActive, activeFrom, activeTo])
+  @@index([eligibleMember])
+}
+
+// ---------- Pass Purchases (passes bought by users) ----------
+model UserPass {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String @db.Uuid
+  productId String @db.Uuid
+
+  // Snapshot fields (optional but useful if product changes after purchase)
+  packageName     String?
+  typeOfPass      String?
+  durationMinutes Int?
+
+  // Inventory/usage management
+  totalQuantity     Int @default(1) // number of passes purchased in this lot
+  remainingQuantity Int @default(1) // decrement when applied to bookings
+
+  activeFrom DateTime?
+  activeTo   DateTime?
+  memberType MemberType? // snapshot of buyer’s type (if you need)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user    User             @relation(fields: [userId], references: [id])
+  product PassProduct      @relation(fields: [productId], references: [id])
+  uses    BookingPassUse[]
+
+  @@index([userId])
+  @@index([productId])
+  @@index([isActive])
+}
+
+// ---------- Bridge: which purchased pass(es) were applied to a booking ----------
+model BookingPassUse {
+  id             String   @id @default(uuid()) @db.Uuid
+  bookingId      String   @db.Uuid
+  userPassId     String   @db.Uuid
+  minutesApplied Int? // if partial usage matters; else omit
+  usedAt         DateTime @default(now())
+
+  // Relations
+  booking  Booking  @relation(fields: [bookingId], references: [id])
+  userPass UserPass @relation(fields: [userPassId], references: [id])
+
+  @@unique([bookingId, userPassId]) // prevent double-linking the same purchase to the same booking
+  @@index([bookingId])
+  @@index([userPassId])
+}

@@ -1,0 +1,507 @@
+/* Package System Styles */
+/* src/styles/package-system.css */
+
+/* Package Card Styles */
+.package-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  border: none;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.package-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.package-card .card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.package-contents .content-item {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.package-contents .content-item:last-child {
+  border-bottom: none;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Pricing Styles */
+.current-price {
+  font-weight: bold;
+  color: #007bff;
+}
+
+.original-price {
+  font-size: 0.9rem;
+}
+
+/* Role-specific colors */
+.role-member {
+  border-left: 4px solid #007bff;
+}
+
+.role-tutor {
+  border-left: 4px solid #28a745;
+}
+
+.role-student {
+  border-left: 4px solid #ffc107;
+}
+
+/* Package Type Badges */
+.badge-half-day {
+  background-color: #6f42c1;
+}
+
+.badge-full-day {
+  background-color: #20c997;
+}
+
+.badge-semester-bundle {
+  background-color: #fd7e14;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .package-card {
+    margin-bottom: 1rem;
+  }
+  
+  .package-contents {
+    font-size: 0.9rem;
+  }
+}
+
+/* Loading States */
+.loading-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Purchase Modal */
+.package-summary {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+}
+
+/* Admin Table */
+.admin-table .badge {
+  font-size: 0.75rem;
+}
+
+/* Error States */
+.error-state {
+  text-align: center;
+  padding: 2rem;
+  color: #dc3545;
+}
+
+.error-state .error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+/* Package Grid */
+.package-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+/* Package Features */
+.package-features {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.package-features li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+}
+
+.package-features li:before {
+  content: "✓";
+  color: #28a745;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+/* Package Status Indicators */
+.package-status-active {
+  color: #28a745;
+}
+
+.package-status-expired {
+  color: #dc3545;
+}
+
+.package-status-pending {
+  color: #ffc107;
+}
+
+/* Package Progress Bar */
+.package-progress {
+  height: 8px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.package-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #28a745, #20c997);
+  transition: width 0.3s ease;
+}
+
+/* Package Purchase Flow */
+.purchase-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2rem 0;
+}
+
+.purchase-step {
+  display: flex;
+  align-items: center;
+  margin: 0 1rem;
+}
+
+.purchase-step-number {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: #007bff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.purchase-step.active .purchase-step-number {
+  background-color: #28a745;
+}
+
+.purchase-step.completed .purchase-step-number {
+  background-color: #6c757d;
+}
+
+/* Package Comparison */
+.package-comparison {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.package-comparison-item {
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.package-comparison-item.featured {
+  border-color: #007bff;
+  transform: scale(1.05);
+}
+
+/* Package Benefits */
+.package-benefits {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+}
+
+.package-benefits h4 {
+  color: #495057;
+  margin-bottom: 1rem;
+}
+
+.package-benefits ul {
+  list-style: none;
+  padding: 0;
+}
+
+.package-benefits li {
+  padding: 0.25rem 0;
+  color: #6c757d;
+}
+
+/* Package FAQ */
+.package-faq {
+  margin: 2rem 0;
+}
+
+.package-faq-item {
+  border-bottom: 1px solid #e9ecef;
+  padding: 1rem 0;
+}
+
+.package-faq-question {
+  font-weight: bold;
+  color: #495057;
+  margin-bottom: 0.5rem;
+}
+
+.package-faq-answer {
+  color: #6c757d;
+  line-height: 1.5;
+}
+
+/* Package Testimonials */
+.package-testimonials {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.package-testimonial {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.package-testimonial-text {
+  font-style: italic;
+  color: #495057;
+  margin-bottom: 1rem;
+}
+
+.package-testimonial-author {
+  font-weight: bold;
+  color: #007bff;
+}
+
+/* Package CTA */
+.package-cta {
+  text-align: center;
+  margin: 2rem 0;
+  padding: 2rem;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  color: white;
+  border-radius: 8px;
+}
+
+.package-cta h3 {
+  margin-bottom: 1rem;
+}
+
+.package-cta p {
+  margin-bottom: 1.5rem;
+  opacity: 0.9;
+}
+
+/* Package Stats */
+.package-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.package-stat {
+  text-align: center;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.package-stat-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #007bff;
+}
+
+.package-stat-label {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* Package Tags */
+.package-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.package-tag {
+  background-color: #e9ecef;
+  color: #495057;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.package-tag.popular {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.package-tag.new {
+  background-color: #28a745;
+  color: white;
+}
+
+.package-tag.limited {
+  background-color: #dc3545;
+  color: white;
+}
+
+/* Package Reviews */
+.package-reviews {
+  margin: 2rem 0;
+}
+
+.package-review {
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.package-review-header {
+  display: flex;
+  justify-content: between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.package-review-rating {
+  color: #ffc107;
+}
+
+.package-review-author {
+  font-weight: bold;
+  color: #495057;
+}
+
+.package-review-date {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.package-review-text {
+  color: #495057;
+  line-height: 1.5;
+}
+
+/* Package Support */
+.package-support {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.package-support h4 {
+  color: #495057;
+  margin-bottom: 1rem;
+}
+
+.package-support p {
+  color: #6c757d;
+  margin-bottom: 1rem;
+}
+
+/* Package Guarantee */
+.package-guarantee {
+  border: 2px solid #28a745;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  text-align: center;
+  background-color: #f8fff9;
+}
+
+.package-guarantee h4 {
+  color: #28a745;
+  margin-bottom: 1rem;
+}
+
+.package-guarantee p {
+  color: #495057;
+}
+
+/* Package Updates */
+.package-updates {
+  background-color: #e3f2fd;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.package-updates h5 {
+  color: #1976d2;
+  margin-bottom: 0.5rem;
+}
+
+.package-updates p {
+  color: #424242;
+  font-size: 0.9rem;
+}
+
+/* Package Notifications */
+.package-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: #28a745;
+  color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.package-notification.error {
+  background-color: #dc3545;
+}
+
+.package-notification.warning {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.package-notification.info {
+  background-color: #17a2b8;
+}
+
+
+
