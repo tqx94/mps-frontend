@@ -43,6 +43,7 @@ import {
 import { formatCurrency } from '@/lib/paymentUtils'
 import Navbar from '@/components/Navbar'
 import { FooterSection } from '@/components/landing-page-sections/FooterSection'
+import { authenticatedFetch } from '@/lib/apiClient'
 
 export default function ExtendBookingPage() {
   const params = useParams()
@@ -336,7 +337,7 @@ export default function ExtendBookingPage() {
         setLoading(true)
 
         // Load booking details
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/booking/${bookingId}`)
+        const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/booking/${bookingId}`)
         if (!response.ok) {
           throw new Error('Failed to load booking')
         }
@@ -484,11 +485,8 @@ export default function ExtendBookingPage() {
           console.log('Using extension data:', extensionData)
 
           // Call backend to confirm extension payment
-          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/booking/confirm-extension-payment`, {
+          const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/booking/confirm-extension-payment`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
             body: JSON.stringify({
               bookingId: bookingId,
               paymentId: paymentId,
@@ -663,11 +661,8 @@ export default function ExtendBookingPage() {
       try {
         setCheckingSeats(true)
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/booking/getBookedSeats`, {
+        const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/booking/getBookedSeats`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
             location: booking.location,
             startAt: originalEndDate.toISOString().replace('T', ' ').replace('Z', ''),
@@ -762,9 +757,8 @@ export default function ExtendBookingPage() {
         // Generate a proper UUID for payment ID
         const paymentId = crypto.randomUUID()
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/booking/confirm-extension-payment`, {
+        const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/booking/confirm-extension-payment`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             bookingId,
             paymentId,

@@ -306,6 +306,7 @@ export default function ReschedulePage() {
   }
 
   // Helper to generate available times for a given date based on operating hours
+  // Using same logic as BookingForm for consistency
   const getAvailableTimes = (date: Date | null): Date[] => {
     if (!date) return [];
 
@@ -315,33 +316,54 @@ export default function ReschedulePage() {
 
     const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive);
 
-    // If no shop hours found, return empty array
+    // CRITICAL: Always show times even if hours aren't loaded yet (fallback)
     if (operatingHours.length === 0 || !dayHours) {
-      return [];
+      const times: Date[] = [];
+      const start = new Date(date);
+      start.setHours(0, 0, 0, 0);
+      for (let i = 0; i < 24 * 4; i++) {
+        const time = new Date(start.getTime() + i * 15 * 60 * 1000);
+        // For same-day bookings, only include future times
+        if (!isToday || time > now) {
+          times.push(time);
+        }
+      }
+      return times;
     }
 
     const times: Date[] = [];
-    const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number);
-    const [closeHours, closeMinutes] = dayHours.closeTime.split(':').map(Number);
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
 
-    // Create start and end times for the selected date
-    const openTime = new Date(date);
-    openTime.setHours(openHours, openMinutes, 0, 0);
-    
-    const closeTime = new Date(date);
-    closeTime.setHours(closeHours, closeMinutes, 0, 0);
+    // Generate 15-min intervals within shop hours
+    // Using string comparison like BookingForm to handle edge cases (like 00:40:00)
+    for (let i = 0; i < 24 * 4; i++) {
+      const time = new Date(start.getTime() + i * 15 * 60 * 1000);
+      const timeString = time.toTimeString().split(' ')[0].substring(0, 5);
 
-    // Generate 15-minute intervals
-    let currentTime = new Date(openTime);
-    while (currentTime < closeTime) {
-      // For today, only include future times
-      if (isToday && currentTime <= now) {
-        currentTime.setMinutes(currentTime.getMinutes() + 15);
-        continue;
+      const openTime = dayHours.openTime.substring(0, 5);
+      const closeTime = dayHours.closeTime.substring(0, 5);
+
+      // Check if time is within operating hours using string comparison
+      if (timeString >= openTime && timeString <= closeTime) {
+        // For same-day bookings, only include times in the future
+        if (!isToday || time > now) {
+          // Check if this time slot falls within any closure period
+          const isInClosure = closureDates.some(closure => {
+            const closureStart = new Date(closure.startDate) // UTC -> local timezone
+            const closureEnd = new Date(closure.endDate) // UTC -> local timezone
+            
+            // Check if currentTime falls within the closure period
+            return time.getTime() >= closureStart.getTime() && 
+                   time.getTime() < closureEnd.getTime()
+          })
+          
+          // Only add time if it's NOT in a closure period
+          if (!isInClosure) {
+            times.push(time);
+          }
+        }
       }
-      
-      times.push(new Date(currentTime));
-      currentTime.setMinutes(currentTime.getMinutes() + 15);
     }
 
     return times;
@@ -1229,14 +1251,14 @@ export default function ReschedulePage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 sm:space-y-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                    <div>
-                      <Label htmlFor="newStartDate" className="flex items-center gap-2">
-                        New Start Time
+                  {/* Date Range - Using BookingForm style */}
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-500 uppercase mb-1 text-left flex items-center gap-2">
+                        From
                         {isLoadingShopHours && <Loader2 className="h-3 w-3 animate-spin text-orange-500" />}
-                      </Label>
+                      </label>
                       <DatePicker
-                        id="newStartDate"
                         selected={newStartDate}
                         onChange={(date) => {
                           setNewStartDate(date)
@@ -1244,12 +1266,6 @@ export default function ReschedulePage() {
                           if (date && originalDuration > 0) {
                             const calculatedEndDate = new Date(date.getTime() + (originalDuration * 60 * 60 * 1000))
                             // Ensure end date is on the same day as start date
-                            const startDay = new Date(date)
-                            startDay.setHours(0, 0, 0, 0)
-                            const endDay = new Date(calculatedEndDate)
-                            endDay.setHours(0, 0, 0, 0)
-                            
-                            // If calculated end date is on a different day, set it to end of start day
                             if (!isSameDay(calculatedEndDate, date)) {
                               const endOfStartDay = endOfDay(date)
                               setNewEndDate(endOfStartDay)
@@ -1259,24 +1275,26 @@ export default function ReschedulePage() {
                           }
                         }}
                         onSelect={handleDateSelect}
+                        onChangeRaw={(e) => e?.preventDefault()}
+                        selectsStart
+                        startDate={newStartDate}
+                        endDate={newEndDate}
                         showTimeSelect
-                        timeFormat="h:mm aa"
-                        timeIntervals={15}
-                        dateFormat="dd MMM yyyy, h:mm aa"
+                        includeTimes={getAvailableTimes(newStartDate)}
+                        dateFormat="MMM d, h:mm aa"
+                        placeholderText="Start"
+                        className="w-full pl-0 border-b border-gray-300 pb-1 focus:outline-none text-black"
                         minDate={new Date()}
                         maxDate={maxBookingDate}
                         excludeDates={getExcludedDates()}
-                        includeTimes={getAvailableTimes(newStartDate)}
-                        className="w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none transition-colors"
-                        wrapperClassName="w-full"
-                        placeholderText="Select new start time"
+                        timeIntervals={15}
+                        timeFormat="h:mm aa"
                       />
                     </div>
 
-                    <div>
-                      <Label htmlFor="newEndDate">New End Time</Label>
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-500 uppercase mb-1 text-left">To</label>
                       <DatePicker
-                        id="newEndDate"
                         selected={newEndDate}
                         onChange={(date) => {
                           if (!date || !newStartDate) return
@@ -1290,18 +1308,21 @@ export default function ReschedulePage() {
                             setNewEndDate(date)
                           }
                         }}
-                        showTimeSelect
-                        timeFormat="h:mm aa"
-                        timeIntervals={15}
-                        dateFormat="dd MMM yyyy, h:mm aa"
+                        onChangeRaw={(e) => e?.preventDefault()}
+                        selectsEnd
+                        startDate={newStartDate}
+                        endDate={newEndDate}
                         minDate={newStartDate || undefined}
                         maxDate={newStartDate ? endOfDay(newStartDate) : undefined}
-                        excludeDates={getExcludedDates()}
+                        showTimeSelect
                         includeTimes={getAvailableEndTimes(newStartDate)}
-                        className="w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none transition-colors"
-                        wrapperClassName="w-full"
-                        placeholderText="Select new end time"
+                        dateFormat="MMM d, h:mm aa"
+                        placeholderText="End"
+                        className="w-full pl-0 border-b border-gray-300 pb-1 focus:outline-none text-black"
                         disabled={!newStartDate}
+                        excludeDates={getExcludedDates()}
+                        timeIntervals={15}
+                        timeFormat="h:mm aa"
                       />
                     </div>
                   </div>
