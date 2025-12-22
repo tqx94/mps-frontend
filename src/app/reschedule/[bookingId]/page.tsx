@@ -287,18 +287,51 @@ export default function ReschedulePage() {
   const maxBookingDate = addMonths(new Date(), 2)
 
   // Helper function to get dates that should be excluded (closure dates)
+  // Only exclude dates where closure completely covers operating hours
   const getExcludedDates = (): Date[] => {
     const excluded: Date[] = []
 
     closureDates.forEach(closure => {
-      const start = new Date(closure.startDate)
-      const end = new Date(closure.endDate)
+      // Convert UTC dates to local timezone
+      const closureStart = new Date(closure.startDate)
+      const closureEnd = new Date(closure.endDate)
 
-      // Add all dates in the closure range
-      let current = new Date(start)
-      while (current <= end) {
-        excluded.push(new Date(current))
-        current.setDate(current.getDate() + 1)
+      // Get local date components (date only, without time)
+      const closureStartDate = new Date(closureStart.getFullYear(), closureStart.getMonth(), closureStart.getDate())
+      const closureEndDate = new Date(closureEnd.getFullYear(), closureEnd.getMonth(), closureEnd.getDate())
+
+      // Get time components in local timezone
+      const closureStartTime = closureStart.getHours() * 60 + closureStart.getMinutes() // Minutes since midnight
+      const closureEndTime = closureEnd.getHours() * 60 + closureEnd.getMinutes()
+
+      // Check each date in the closure range
+      let currentDate = new Date(closureStartDate)
+      while (currentDate <= closureEndDate) {
+        const dayOfWeek = currentDate.getDay()
+        const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+
+        if (dayHours) {
+          // Parse operating hours
+          const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number)
+          const [closeHours, closeMinutes] = dayHours.closeTime.split(':').map(Number)
+          const operatingStartTime = openHours * 60 + openMinutes
+          const operatingEndTime = closeHours * 60 + closeMinutes
+
+          // Check if closure completely covers operating hours for this date
+          // Closure must start before/at operating start AND end after/at operating end
+          const isFullDayClosure = closureStartTime <= operatingStartTime && closureEndTime >= operatingEndTime
+
+          if (isFullDayClosure) {
+            excluded.push(new Date(currentDate))
+          }
+        } else {
+          // If no operating hours for this day, exclude it if closure covers full day (00:00 to 23:59)
+          if (closureStartTime === 0 && closureEndTime >= 1439) {
+            excluded.push(new Date(currentDate))
+          }
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1)
       }
     })
 
