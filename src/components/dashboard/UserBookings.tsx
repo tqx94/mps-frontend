@@ -307,6 +307,8 @@ export function UserBookings() {
 
   const upcomingBookings = bookings
     .filter(booking => {
+      // Only include paid bookings
+      if (!booking.confirmedPayment) return false
       // Exclude cancelled by admin or refunded bookings
       if (isCancelledOrRefunded(booking)) return false
       if (booking.status === 'refunded' || booking.refundstatus === 'APPROVED') return false
@@ -319,6 +321,8 @@ export function UserBookings() {
 
   const ongoingBookings = bookings
     .filter(booking => {
+      // Only include paid bookings
+      if (!booking.confirmedPayment) return false
       // Exclude cancelled by admin or refunded bookings
       if (isCancelledOrRefunded(booking)) return false
       if (booking.status === 'refunded' || booking.refundstatus === 'APPROVED') return false
@@ -335,6 +339,8 @@ export function UserBookings() {
 
   const pastBookings = bookings
     .filter(booking => {
+      // Only include paid bookings
+      if (!booking.confirmedPayment) return false
       // Exclude cancelled by admin or refunded bookings
       if (isCancelledOrRefunded(booking)) return false
       if (booking.status === 'refunded' || booking.refundstatus === 'APPROVED') return false
