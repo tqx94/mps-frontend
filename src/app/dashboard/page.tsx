@@ -311,12 +311,29 @@ export default function Dashboard() {
     loadUpcomingBookings()
   }, [authUser?.id])
 
-  // Listen for hash changes (browser back/forward navigation)
+  // Set initial hash if not present and handle hash changes
   useEffect(() => {
+    // Set hash to overview if no hash is present
+    if (typeof window !== 'undefined' && !window.location.hash) {
+      window.location.hash = 'overview'
+      setActiveTab('overview')
+    } else {
+      // Read hash from URL on mount
+      const hash = window.location.hash.replace('#', '')
+      if (hash) {
+        setActiveTab(hash)
+      }
+    }
+
+    // Listen for hash changes (browser back/forward navigation)
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '')
       if (hash) {
         setActiveTab(hash)
+      } else {
+        // If hash is removed, default to overview
+        setActiveTab('overview')
+        window.location.hash = 'overview'
       }
     }
 
@@ -463,16 +480,17 @@ export default function Dashboard() {
 
 
           <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="mybookings">My Bookings</TabsTrigger>
-              <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="passes">Packages</TabsTrigger>
-
-              <TabsTrigger value="promocodes">Promo Codes</TabsTrigger>
-              <TabsTrigger value="credits">Credits</TabsTrigger>
-              {/* <TabsTrigger value="refunds">Refund Requests</TabsTrigger> */}
-            </TabsList>
+            <div className="w-full overflow-x-auto scrollbar-hide -mx-4 px-4 md:overflow-x-visible md:mx-0 md:px-0">
+              <TabsList className="grid w-full grid-cols-6 min-w-[600px] md:min-w-0">
+                <TabsTrigger value="overview" className="text-xs sm:text-sm md:text-base whitespace-nowrap">Overview</TabsTrigger>
+                <TabsTrigger value="mybookings" className="text-xs sm:text-sm md:text-base whitespace-nowrap">My Bookings</TabsTrigger>
+                <TabsTrigger value="profile" className="text-xs sm:text-sm md:text-base whitespace-nowrap">Profile</TabsTrigger>
+                <TabsTrigger value="passes" className="text-xs sm:text-sm md:text-base whitespace-nowrap">Packages</TabsTrigger>
+                <TabsTrigger value="promocodes" className="text-xs sm:text-sm md:text-base whitespace-nowrap">Promo Codes</TabsTrigger>
+                <TabsTrigger value="credits" className="text-xs sm:text-sm md:text-base whitespace-nowrap">Credits</TabsTrigger>
+                {/* <TabsTrigger value="refunds">Refund Requests</TabsTrigger> */}
+              </TabsList>
+            </div>
 
 
             <TabsContent value="overview" className="space-y-6">
@@ -801,7 +819,7 @@ export default function Dashboard() {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {/* User Avatar and Basic Info */}
-                    <div className="flex items-center space-x-6">
+                    <div className="flex items-center space-x-6 flex-col md:flex-row">
                       <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                         <User className="w-10 h-10 text-white" />
                       </div>
@@ -887,7 +905,7 @@ export default function Dashboard() {
                         size="sm"
                         onClick={handleEditProfile}
                         disabled={isLoadingProfile}
-                        className="border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+                        className="border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800 w-full md:w-auto mt-4 md:mt-0"
                       >
                         <Edit className="w-4 h-4 mr-2" />
                         {isEditingProfile ? 'Cancel' : 'Edit Profile'}
@@ -934,26 +952,29 @@ export default function Dashboard() {
                           className="mt-1"
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="memberType">Member Type</Label>
-                        <Select
-                          disabled={!isEditingProfile}
-                          value={isEditingProfile ? editFormData.memberType : getEffectiveMemberType(
-                            userProfile?.memberType || databaseUser?.memberType || sampleUserData.memberType,
-                            userProfile?.studentVerificationStatus || databaseUser?.studentVerificationStatus || sampleUserData.studentVerificationStatus
-                          )}
-                          onValueChange={handleMemberTypeChange}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="STUDENT">Student</SelectItem>
-                            <SelectItem value="MEMBER">Member</SelectItem>
-                            {/* <SelectItem value="TUTOR">Tutor</SelectItem> */}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {/* Hide Member Type field for admin users */}
+                      {(databaseUser?.memberType !== 'ADMIN' && userProfile?.memberType !== 'ADMIN') && (
+                        <div>
+                          <Label htmlFor="memberType">Member Type</Label>
+                          <Select
+                            disabled={!isEditingProfile}
+                            value={isEditingProfile ? editFormData.memberType : getEffectiveMemberType(
+                              userProfile?.memberType || databaseUser?.memberType || sampleUserData.memberType,
+                              userProfile?.studentVerificationStatus || databaseUser?.studentVerificationStatus || sampleUserData.studentVerificationStatus
+                            )}
+                            onValueChange={handleMemberTypeChange}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="STUDENT">Student</SelectItem>
+                              <SelectItem value="MEMBER">Member</SelectItem>
+                              {/* <SelectItem value="TUTOR">Tutor</SelectItem> */}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       {(userProfile?.memberType || databaseUser?.memberType || sampleUserData.memberType) === 'STUDENT' && (
                         <div>
                           <Label htmlFor="verificationStatus">Student Verification</Label>

@@ -546,40 +546,48 @@ export function RefundManagement() {
                   return groups.map((group: any, idx: number) => {
                     const userId = group.items[0]?.userid;
                     return (
-                    <AccordionItem key={idx} value={`user-${idx}`} className="border rounded-lg mb-3 px-4">
+                    <AccordionItem key={idx} value={`user-${idx}`} className="border rounded-lg mb-3 px-2 sm:px-4">
                       <AccordionTrigger className="hover:no-underline">
-                        <div className="flex items-center justify-between w-full pr-4">
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-gray-500" />
-                            <span className="font-medium">{group.userEmail}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full pr-4 gap-3 sm:gap-0">
+                          {/* User Email Section */}
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Users className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                            <span className="font-medium text-sm sm:text-base truncate">{group.userEmail}</span>
                           </div>
-                          <div className="flex items-center gap-4 text-sm">
+                          
+                          {/* Credit Info Section - Responsive */}
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                            {/* Total Credit */}
                             <div className="flex items-center gap-1">
-                              <DollarSign className="h-4 w-4 text-gray-500" />
-                              <span className="text-gray-600">Total:</span>
+                              <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 flex-shrink-0" />
+                              <span className="text-gray-600 whitespace-nowrap">Total:</span>
                               <span className="font-medium">{formatCurrency(group.totalCredit)}</span>
                             </div>
+                            
+                            {/* Used Credit */}
                             <div className="flex items-center gap-1">
-                              <TrendingUp className="h-4 w-4 text-orange-500" />
-                              <span className="text-gray-600">Used:</span>
+                              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500 flex-shrink-0" />
+                              <span className="text-gray-600 whitespace-nowrap">Used:</span>
                               <span className="text-orange-600 font-medium">{formatCurrency(group.usedCredit)}</span>
                             </div>
+                            
+                            {/* Remaining Credit and Edit Button */}
                             <div className="flex items-center gap-2">
                               <div className="flex items-center gap-1">
-                                <Wallet className="h-4 w-4 text-green-500" />
-                                <span className="text-gray-600">Remaining:</span>
+                                <Wallet className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
+                                <span className="text-gray-600 whitespace-nowrap">Remaining:</span>
                                 <span className="text-green-600 font-medium">{formatCurrency(group.remainingCredit)}</span>
                               </div>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 px-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                className="h-7 sm:h-8 px-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 flex-shrink-0"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleEditCredits(userId, group.userEmail, group.remainingCredit);
                                 }}
                               >
-                                <Pencil className="h-4 w-4" />
+                                <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
                               </Button>
                             </div>
                           </div>
@@ -588,31 +596,31 @@ export function RefundManagement() {
                       
                       <AccordionContent>
                         {/* User's individual credits */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 pt-2">
                           {group.items.map((credit: any) => (
-                            <div key={credit.id} className="p-3 border rounded-md bg-gray-50">
-                              <div className="flex items-center justify-between mb-2">
+                            <div key={credit.id} className="p-2 sm:p-3 border rounded-md bg-gray-50">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
                                 <div className="flex items-center gap-2">
                                   <Badge
                                     className={
                                       credit.status === 'ACTIVE'
-                                        ? 'bg-orange-600 text-white hover:bg-orange-700'
-                                        : 'bg-gray-200 text-gray-800'
+                                        ? 'bg-orange-600 text-white hover:bg-orange-700 text-xs'
+                                        : 'bg-gray-200 text-gray-800 text-xs'
                                     }
                                   >
                                     {credit.status}
                                   </Badge>
-                                  <span className="font-medium">{formatCurrency(credit.amount)}</span>
+                                  <span className="font-medium text-sm sm:text-base">{formatCurrency(credit.amount)}</span>
                                 </div>
                                 {credit.Booking && (
-                                  <div className="text-xs text-gray-500">{credit.Booking.bookingRef}</div>
+                                  <div className="text-xs text-gray-500 truncate">{credit.Booking.bookingRef}</div>
                                 )}
                               </div>
                               <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div className="text-gray-500">Created</div>
-                                <div>{formatDate(credit.createdat)}</div>
+                                <div className="break-words">{formatDate(credit.createdat)}</div>
                                 <div className="text-gray-500">Expires</div>
-                                <div>{formatDate(credit.expiresat)}</div>
+                                <div className="break-words">{formatDate(credit.expiresat)}</div>
                                 {typeof credit.creditUsed === 'number' && (
                                   <>
                                     <div className="text-gray-500">Used (this credit)</div>

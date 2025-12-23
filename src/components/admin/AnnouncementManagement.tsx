@@ -290,7 +290,7 @@ export function AnnouncementManagement() {
         <>
             <Card>
                 <CardHeader>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-start flex-col md:flex-row gap-2">
                         <CardTitle>Latest Announcements</CardTitle>
                         <div className="flex gap-2">
                             <Button

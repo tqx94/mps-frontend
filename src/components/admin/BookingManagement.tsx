@@ -563,7 +563,7 @@ export function BookingManagement() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-col md:flex-row gap-2">
         <div>
           <h2 className="text-2xl font-bold">Booking Management</h2>
           <p className="text-gray-600">Manage all bookings and view analytics</p>

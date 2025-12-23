@@ -56,37 +56,38 @@ export default function AdminTabs({
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
       <TabsList
-        className="flex w-full justify-start overflow-x-auto whitespace-nowrap px-6 py-2 relative"
+        className="flex w-full justify-start overflow-y-hidden scrollbar-hide overflow-x-auto whitespace-nowrap px-6 py-2 relative"
         style={{ scrollBehavior: 'smooth' }}
       >
 
-        <TabsTrigger value="overview" className="snap-start">
+        <TabsTrigger value="overview" className="snap-start py-3 text-md">
           Overview
           {pendingStudents.length > 0 && (
-            <span className="ml-2 bg-orange-500 text-white text-xs rounded-full px-2 py-1">
+            <span className="ml-2 bg-orange-500 text-white rounded-full px-2 py-1 text-md">
               {pendingStudents.length}
             </span>
           )}
         </TabsTrigger>
-        <TabsTrigger value="announcements">Latest Announcement</TabsTrigger>
+        <TabsTrigger value="announcements" className='snap-start py-3 text-md'>Latest Announcement</TabsTrigger>
 
-        <TabsTrigger value="bookings" className="snap-start">Bookings</TabsTrigger>
-        <TabsTrigger value="user-management" className="snap-start">User Management</TabsTrigger>
-        <TabsTrigger value="packages" className="snap-start">Packages</TabsTrigger>
-        <TabsTrigger value="package-usage" className="snap-start">Package Usage</TabsTrigger>
-        <TabsTrigger value="promocodes" className="snap-start">Promo Codes</TabsTrigger>
-        <TabsTrigger value="refunds" className="snap-start">User Credits</TabsTrigger>
-        <TabsTrigger value="pricing" className="snap-start">Pricing</TabsTrigger>
-        <TabsTrigger value="payment-settings" className="snap-start flex items-center whitespace-nowrap">
+        <TabsTrigger value="bookings" className="snap-start py-3 text-md">Bookings</TabsTrigger>
+        <TabsTrigger value="user-management" className="snap-start py-3 text-md">User Management</TabsTrigger>
+        <TabsTrigger value="packages" className="snap-start py-3 text-md">Packages</TabsTrigger>
+        <TabsTrigger value="package-usage" className="snap-start py-3 text-md">Package Usage</TabsTrigger>
+        <TabsTrigger value="promocodes" className="snap-start py-3 text-md">Promo Codes</TabsTrigger>
+        <TabsTrigger value="refunds" className="snap-start py-3 text-md">User Credits</TabsTrigger>
+        <TabsTrigger value="pricing" className="snap-start py-3 text-md">Pricing</TabsTrigger>
+        <TabsTrigger value="pricing" className="snap-start py-3 text-md">Pricing</TabsTrigger>
+        <TabsTrigger value="payment-settings" className="snap-start py-3 text-md flex items-center whitespace-nowrap">
           Payment Settings
         </TabsTrigger>
-        <TabsTrigger value="door-lock" className="snap-start flex items-center whitespace-nowrap">
+        <TabsTrigger value="door-lock" className="snap-start py-3 text-md flex items-center whitespace-nowrap">
           Door Lock
         </TabsTrigger>
-        <TabsTrigger value="tuya-settings" className="snap-start flex items-center whitespace-nowrap">
+        <TabsTrigger value="tuya-settings" className="snap-start py-3 text-md flex items-center whitespace-nowrap">
           Tuya Settings
         </TabsTrigger>
-        <TabsTrigger value="shop-hours" className="snap-start flex items-center whitespace-nowrap">
+        <TabsTrigger value="shop-hours" className="snap-start py-3 text-md flex items-center whitespace-nowrap">
           Shop Hours
         </TabsTrigger>
 

@@ -315,7 +315,7 @@ const PackageManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start md:items-center flex-col md:flex-row gap-2">
         <div>
           <h2 className="text-2xl font-bold">Package Management</h2>
           <p className="text-gray-600">Manage count-based packages for your space</p>

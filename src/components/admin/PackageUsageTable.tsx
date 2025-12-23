@@ -333,7 +333,7 @@ export default function PackageUsageTable() {
       {pagination.totalPages > 1 && (
         <Card>
           <CardContent className="py-4">
-            <div className="flex items-center justify-between">
+            <div className="md:flex items-center justify-between">
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <span>
                   Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
@@ -342,7 +342,7 @@ export default function PackageUsageTable() {
                 </span>
               </div>
               
-              <div className="flex items-center space-x-2">
+              <div className="md:flex items-center space-x-2">
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-muted-foreground">Rows per page:</span>
                   <Select value={pagination.limit.toString()} onValueChange={(value) => handleLimitChange(parseInt(value))}>

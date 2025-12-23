@@ -28,10 +28,7 @@ export const AdminPackageManagement: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   
-  // Debug logging
-  console.log('🔍 Admin Package Management - Packages:', packages);
-  console.log('🔍 Admin Package Management - Loading:', loading);
-  console.log('🔍 Admin Package Management - Error:', error);
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',

@@ -403,7 +403,7 @@ export default function ConfirmationStep({
         
         {status === 'success' && (
           <Button
-            onClick={() => window.location.href = '/dashboard'}
+            onClick={() => window.location.href = '/dashboard#overview'}
             className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
           >
             Go to Dashboard

@@ -1,7 +1,7 @@
 // src/components/Navbar.tsx - Updated for client-side auth
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -52,10 +52,20 @@ const sections: Section[] = [
 export default function Navbar() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user, databaseUser, loading: authLoading, isLoggedIn } = useAuth()
+  const { user, databaseUser, loading: authLoading, isLoggedIn, refreshDatabaseUser } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [logoutLoading, setLogoutLoading] = useState(false)
   const [expandedDropdowns, setExpandedDropdowns] = useState<Set<string>>(new Set())
+
+  // Ensure databaseUser is loaded if user exists
+  useEffect(() => {
+    if (user && !databaseUser && !authLoading) {
+      refreshDatabaseUser()
+    }
+  }, [user, databaseUser, authLoading, refreshDatabaseUser])
+
+  // Check if user is admin - check both databaseUser and user metadata
+  const isAdmin = databaseUser?.memberType === 'ADMIN' || user?.user_metadata?.memberType === 'ADMIN'
 
   const avatarUrl = user?.user_metadata?.avatar_url || '/profilepic/default-avatar.png'
 
@@ -174,13 +184,13 @@ export default function Navbar() {
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {databaseUser?.memberType === 'ADMIN' && (
+                {(databaseUser?.memberType === 'ADMIN' || user?.user_metadata?.memberType === 'ADMIN') && (
                   <DropdownMenuItem asChild>
                     <Link href="/admin">Admin Dashboard</Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard">Dashboard</Link>
+                  <Link href="/dashboard#overview">Dashboard</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleLogout}
@@ -301,7 +311,7 @@ export default function Navbar() {
                     {databaseUser?.name || user?.user_metadata?.firstName || "User"}
                   </span>
                 </div>
-                {databaseUser?.memberType === 'ADMIN' && (
+                {(databaseUser?.memberType === 'ADMIN' || user?.user_metadata?.memberType === 'ADMIN') && (
                   <Button
                     variant="ghost"
                     className="w-full justify-start text-sm sm:text-base"
@@ -317,7 +327,7 @@ export default function Navbar() {
                   variant="ghost"
                   className="w-full justify-start text-sm sm:text-base"
                   onClick={() => {
-                    router.push('/dashboard')
+                    router.push('/dashboard#overview')
                     closeMobileMenu()
                   }}
                 >

@@ -2120,7 +2120,7 @@ export default function BookingClient() {
                                   Try Booking Again
                                 </Button>
                                 <Button
-                                  onClick={() => router.push('/dashboard')}
+                                  onClick={() => router.push('/dashboard#overview')}
                                   variant="outline"
                                   className="ml-3"
                                 >
@@ -2189,7 +2189,7 @@ export default function BookingClient() {
                             )}
                           </div>
                           <Button
-                            onClick={() => router.push('/dashboard')}
+                            onClick={() => router.push('/dashboard#overview')}
                             className="mt-6 bg-orange-500 hover:bg-orange-600"
                           >
                             View My Bookings

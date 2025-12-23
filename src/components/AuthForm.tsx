@@ -159,11 +159,11 @@ export function AuthForm({ type }: Props) {
         if (userProfile?.memberType === 'ADMIN') {
           router.push('/admin')
         } else {
-          router.push('/dashboard')
+          router.push('/dashboard#overview')
         }
       } else {
         resetCaptcha()
-        router.push(`/dashboard`)
+        router.push(`/dashboard#overview`)
       }
     } catch (error: any) {
       toast({

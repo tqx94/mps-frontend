@@ -483,7 +483,7 @@ export function UserPackages({ userId }: UserPackagesProps) {
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col md:justify-between md:flex-row gap-2">
                       <div className="text-sm text-gray-600">
                         {isPending ? (
                           <span className="text-yellow-600 font-medium">Payment pending - package not activated</span>
@@ -503,7 +503,7 @@ export function UserPackages({ userId }: UserPackagesProps) {
                           <span className="text-gray-600 font-medium">Package details available</span>
                         )}
                       </div>
-                      <div className="flex space-x-2">
+                      <div className="flex space-x-2 flex-col md:flex-row gap-2">
                         <Button 
                           size="sm" 
                           variant="outline"
