@@ -154,8 +154,12 @@
     /* smooth scrolling for all in-page links */
     scroll-behavior: smooth;
 
-    /* reserve space equal to your navbar’s height (4rem) */
+    /* reserve space equal to your navbar's height (4rem) */
     scroll-padding-top: 4rem;
+    
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   * {
@@ -163,5 +167,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    max-width: 100vw;
+    position: relative;
   }
 }

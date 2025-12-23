@@ -39,7 +39,7 @@ export default function LatestAnnouncementSection() {
     }
 
     return (
-        <section id="LatestAnnouncements" className="py-8 bg-gradient-to-b from-gray-50 to-white">
+        <section id="LatestAnnouncements" className="pt-10 bg-gradient-to-b from-gray-50 to-white">
             <div className="container mx-auto text-center">
                 <h2 className="text-4xl font-serif mb-2">Latest Announcements</h2>
                 <p className="text-gray-600 max-w-2xl mx-auto mb-6">
@@ -52,7 +52,7 @@ export default function LatestAnnouncementSection() {
                     </div>
                 ) : (
                     <div className="mt-6">
-                        <Carousel>
+                        <Carousel settings={{ dots: false }}>
                             {announcements.map((announcement) => (
                                 <div key={announcement.id} className="relative group">
                                     {announcement.imageUrl ? (

@@ -20,8 +20,9 @@ import OpenDoorExample from '@/components/OpenDoorExample'
 export default function Home() {
 
   return (
+      <>
 
-    <main className="space-y-16 md:space-y-24">
+    <main className="space-y-4 md:space-y-24 overflow-x-hidden w-full max-w-full">
       {/* NavBar */}
       <Navbar />
 
@@ -55,9 +56,10 @@ export default function Home() {
 
       {/* Section 8: Contact & Footer */}
       <ContactSection />
-      <FooterSection />
       {/* <OpenDoorExample /> */}
 
     </main>
+      <FooterSection />
+    </>
   );
 }

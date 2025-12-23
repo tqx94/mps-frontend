@@ -91,8 +91,8 @@ export function ContactSection() {
                   onChange={(e) => setMessage(e.target.value)}
                   rows={6}
                   className={`${textareaClasses} flex-1 min-h-0`} />
-                <div className="mt-auto flex justify-end space-x-4">
-                  <Button type="submit" className="px-10 py-4 text-lg bg-[#A15630] hover:bg-orange-600  transition-colors duration-200">
+                <div className="mt-auto flex justify-end space-x-4 flex-col md:flex-row gap-4">
+                  <Button type="submit" className="px-10 w-full py-4 text-lg bg-[#A15630] hover:bg-orange-600  transition-colors duration-200">
                     Send via Email
                   </Button>
                   <Button type="button" onClick={handleWhatsApp} className="px-10 py-4 text-lg text-white bg-[#128C7E] hover:bg-[#25D366] transition-colors duration-200">

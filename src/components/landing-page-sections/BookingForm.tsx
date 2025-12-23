@@ -583,19 +583,19 @@ export default function BookingForm() {
   }, [endDate, startDate, operatingHours])
 
   return (
-    <section id="BookNow" className="pt-24">
-      <div className="relative h-[600px] md:h-[700px]">
+    <section id="BookNow" className="pt-16 overflow-x-hidden w-full">
+      <div className="relative h-[600px] md:h-[700px] w-full overflow-hidden">
         <Image src="/mock_img/hero-image.jpg" alt="Hero" fill className="object-cover" />
-        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-center text-white px-4">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif leading-tight">
+        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-center text-white px-4 w-full">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif leading-tight max-w-full px-2">
             Start your unforgettable co-working journey with us.
           </h1>
-          <p className="mt-4 text-sm sm:text-base md:text-lg">Where Community meets Productivity</p>
+          <p className="mt-4 text-sm sm:text-base md:text-lg max-w-full px-2">Where Community meets Productivity</p>
 
           {/*  THE WHITE BAR - RESPONSIVE  */}
-          <div className="mt-6 md:mt-8 bg-white p-4 md:p-6 rounded-lg w-full max-w-4xl mx-auto">
+          <div className="mt-6 md:mt-8 bg-white p-4 md:p-6 rounded-lg w-full max-w-4xl mx-auto overflow-x-hidden px-2 sm:px-4">
             {/* Desktop Layout */}
-            <div className="hidden lg:flex space-x-6 items-end">
+            <div className="hidden lg:flex space-x-4 xl:space-x-6 items-end flex-wrap gap-4">
 
               {/* LOCATION */}
               <div className="flex flex-col">

@@ -19,7 +19,7 @@ export default function LogoCloud() {
                     <div className="relative py-6 md:w-[calc(100%-11rem)]">
                  */}
                  <div className="flex justify-center">
-                 <div className="relative h-40 w-full md:w-[90%]"> {/* taller slider, wider container */}
+                 <div className="relative h-20 w-full md:w-[90%]"> {/* taller slider, wider container */}
 
                         <InfiniteSlider
                             speedOnHover={20}

@@ -34,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-x-hidden`}
       >
         <NextTopLoader
           color="#f97316"
@@ -47,7 +47,7 @@ export default function RootLayout({
           speed={200}
           shadow="0 0 10px #f97316,0 0 5px #f97316"
         />
-        <div className="w-full">
+        <div className="w-full overflow-x-hidden">
           {children}
           <WhatsappLive />
         </div>

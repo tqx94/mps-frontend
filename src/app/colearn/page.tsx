@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { usePackages } from '@/hooks/useNewPackages'
 import { NewPackage } from '@/lib/services/packageService'
 import { usePricing } from '@/hooks/usePricing'
+import { FooterSection } from '@/components/landing-page-sections/FooterSection'
 
 const rateHeaders = ['1 hr']
 
@@ -98,7 +99,7 @@ export default function CoTutorPage() {
       <div className="relative h-125">
         <Image src="/mock_img/hero-bg.png" alt="" fill className="object-cover" />
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg max-w-2xl text-center">
+          <div className="bg-white p-6 rounded-lg max-w-2xl text-center mx-[5%]">
             <p className="uppercase text-sm text-gray-500">People. Space. Vibes.</p>
             <h1 className="mt-2 text-3xl font-bold">Co-Learning</h1>
             <p className="mt-4 text-gray-700">
@@ -159,7 +160,7 @@ export default function CoTutorPage() {
                            ))}
                          </Tab.List>
                
-                         <Tab.Panels className="mt-8">
+                         <Tab.Panels className="mt-8 px-[3%]">
                            {/* Rates Panel */}
                            <Tab.Panel>
                              <div className="overflow-x-auto">
@@ -275,6 +276,7 @@ export default function CoTutorPage() {
       </main>
 
       <ContactSection />
+      <FooterSection/>
     </>
   )
 }

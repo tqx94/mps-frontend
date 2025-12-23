@@ -31,7 +31,7 @@ export default function LocationsSection() {
       <div className="container mx-auto">
       <h2 className="text-4xl font-serif text-center">Locations</h2>
       {/* <p className="mt-2 text-gray-600 text-center text-2xl font-semibold">Your Seat, Your Space</p> */}
-      <p className="mt-2 text-gray-600 text-center">Your Seat, Your Space (A visual guide to our seating layouts)</p>
+      <p className="mt-2 px-6 text-gray-600 text-center">Your Seat, Your Space (A visual guide to our seating layouts)</p>
     
         <Carousel
           settings={{
