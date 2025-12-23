@@ -593,7 +593,7 @@ export default function BookingForm() {
           <p className="mt-4 text-sm sm:text-base md:text-lg max-w-full px-2">Where Community meets Productivity</p>
 
           {/*  THE WHITE BAR - RESPONSIVE  */}
-          <div className="mt-6 md:mt-8 bg-white p-4 md:p-6 rounded-lg w-full max-w-4xl mx-auto overflow-x-hidden px-2 sm:px-4">
+          <div className="mt-6 md:mt-8 bg-white p-4 md:p-6 rounded-lg w-full max-w-5xl mx-auto overflow-x-hidden px-2 sm:px-4">
             {/* Desktop Layout */}
             <div className="hidden lg:flex space-x-4 xl:space-x-6 items-end flex-wrap gap-4">
 

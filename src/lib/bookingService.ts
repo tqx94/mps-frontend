@@ -79,6 +79,7 @@ export interface Booking {
   cancelledBy?: 'admin' | 'user'
   cancelledAt?: string
   cancellationReason?: string
+  remarks?: string
   User?: {
     name: string
     email: string
@@ -122,6 +123,7 @@ export interface UpdateBookingPayload {
 export interface CancelBookingPayload {
   reason: string
   refundAmount: number
+  remarks?: string
 }
 
 export interface BookingFilters {

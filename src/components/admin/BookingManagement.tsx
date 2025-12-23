@@ -52,7 +52,7 @@ export function BookingManagement() {
   const [filters, setFilters] = useState<BookingFilters>({
     page: 1,
     limit: 20,
-    sortBy: 'startAt',
+    sortBy: 'createdAt',
     sortOrder: 'desc'
   })
   const [pagination, setPagination] = useState({
@@ -81,6 +81,7 @@ export function BookingManagement() {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
   const [cancellingBooking, setCancellingBooking] = useState<Booking | null>(null)
   const [cancelReason, setCancelReason] = useState('')
+  const [remarks, setRemarks] = useState('')
   const [refundAmount, setRefundAmount] = useState<number>(0)
   const [locations, setLocations] = useState<string[]>([])
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
@@ -365,6 +366,7 @@ export function BookingManagement() {
   const handleCancelClick = (booking: Booking) => {
     setCancellingBooking(booking)
     setCancelReason('')
+    setRemarks('')
     setRefundAmount(booking.totalAmount) // Default to full refund
     setIsCancelDialogOpen(true)
   }
@@ -377,7 +379,8 @@ export function BookingManagement() {
     try {
       const response = await cancelAdminBooking(cancellingBooking.id, {
         reason: cancelReason,
-        refundAmount: refundAmount
+        refundAmount: refundAmount,
+        remarks: remarks
       })
 
       if (response.success) {
@@ -387,6 +390,8 @@ export function BookingManagement() {
         })
         setIsCancelDialogOpen(false)
         setCancellingBooking(null)
+        setCancelReason('')
+        setRemarks('')
         loadBookings()
       } else {
         toast({
@@ -837,6 +842,7 @@ export function BookingManagement() {
                           <Badge className={getStatusColor(getBookingStatus(booking))}>
                             {getBookingStatus(booking)}
                           </Badge>
+                         <p className="text-xs text-gray-500"> {booking.remarks ? booking.remarks : ''}</p>
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -1169,6 +1175,15 @@ export function BookingManagement() {
               <p className="text-xs text-muted-foreground">
                 Original Total: ${cancellingBooking?.totalAmount || 0}
               </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="remarks">Remarks</Label>
+              <Textarea
+                id="remarks"
+                placeholder="Enter your Remarks"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+              />
             </div>
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
