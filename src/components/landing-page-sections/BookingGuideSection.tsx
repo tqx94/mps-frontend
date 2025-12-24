@@ -28,7 +28,7 @@ const steps = [
 
 export default function BookingGuideSection() {
   return (
-    <section id="BookingGuide">
+    <section id="BookingGuide" className="pt-20">
       <div className="container mx-auto text-center">
         <h2 className="text-4xl font-serif">How to book in under than 5min!</h2>
         <p className="mt-2 text-gray-600">Our environment is distraction-free, safe, and community-driven. Work solo or together — it's your space, your pace.</p>

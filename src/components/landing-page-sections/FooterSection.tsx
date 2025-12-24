@@ -1,18 +1,19 @@
 // src/components/Footer.tsx
 'use client'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { FaFacebookF, FaInstagram, FaWhatsapp, FaMapMarkerAlt  } from 'react-icons/fa'
-
+import { useAuth } from '@/hooks/useAuth'
 
 const menuLinks = [
   { label: 'Home', href: '' },
-  { label: 'Booking', href: '#Booking' },
-  { label: 'Manage my Booking', href: '#managemybooking' },
+  { label: 'Book Now', href: '#BookNow' },
+  { label: 'Manage my Booking', href: 'manage-booking', isProtected: true },
   { label: 'Location', href: '#Locations' },
   { label: 'Pricing', href: '#Pricing' },
-  { label: 'Book Now', href: '#Book Now' },
+
 ]
-const infoLinks = ['Spaces', 'Booking Types', 'Terms & Conditions', 'Privacy']
+const infoLinks = ['Spaces', 'Booking Types', 'Terms & Conditions']
 
 const whatsappInfo = {
   number: "+65 8920 2462",
@@ -27,6 +28,25 @@ const whatsappInfo = {
 };
 
 export function FooterSection() {
+  const router = useRouter()
+  const { isLoggedIn } = useAuth()
+
+  const handleMenuClick = (href: string, isProtected?: boolean) => {
+    if (isProtected) {
+      if (isLoggedIn) {
+        router.push('/dashboard#overview')
+      } else {
+        router.push('/login')
+      }
+    } else {
+      // Handle regular links (hash links or external)
+      if (href.startsWith('#')) {
+        window.location.href = href
+      } else if (href) {
+        router.push(href)
+      }
+    }
+  }
   
   return (
     <footer className="bg-[#efefe7] text-gray-800 py-8">
@@ -52,11 +72,29 @@ export function FooterSection() {
                       <div>
                         <p className="font-semibold text-black mb-2">Menu</p>
                         <ul className="space-y-1">
-                        {menuLinks.map(({ label, href }) => (
+                        {menuLinks.map(({ label, href, isProtected }) => (
                 <li key={label}>
-                  <a href={href} className="text-gray-800 hover:text-gray-600">
-                    {label}
-                  </a>
+                  {isProtected ? (
+                    <button
+                      onClick={() => handleMenuClick(href, isProtected)}
+                      className="text-gray-800 hover:text-gray-600 cursor-pointer text-left"
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <a 
+                      href={href} 
+                      onClick={(e) => {
+                        if (href.startsWith('#')) {
+                          e.preventDefault()
+                          handleMenuClick(href)
+                        }
+                      }}
+                      className="text-gray-800 hover:text-gray-600"
+                    >
+                      {label}
+                    </a>
+                  )}
                 </li>
               ))}
               </ul>
@@ -67,9 +105,31 @@ export function FooterSection() {
               <ul className="space-y-1">
                 {infoLinks.map((t) => (
                   <li key={t}>
-                    <a href="/terms" className="text-gray-800 hover:text-gray-600">
-                      {t}
-                    </a>
+                    {t === 'Booking Types' ? (
+                      <a 
+                        href="#WhyUs" 
+                        onClick={(e) => {
+                          e.preventDefault()
+                          if (window.location.pathname === '/') {
+                            // If already on home page, scroll to section
+                            const element = document.getElementById('WhyUs')
+                            if (element) {
+                              element.scrollIntoView({ behavior: 'smooth' })
+                            }
+                          } else {
+                            // If on different page, navigate to home page with hash
+                            router.push('/#WhyUs')
+                          }
+                        }}
+                        className="text-gray-800 hover:text-gray-600"
+                      >
+                        {t}
+                      </a>
+                    ) : (
+                      <a href="/terms" className="text-gray-800 hover:text-gray-600">
+                        {t}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -120,7 +180,7 @@ export function FooterSection() {
                     <FaFacebookF size={20} />
                     </a>
                     <a
-                    href="https://instagram.com/temp"
+                    href="https://www.instagram.com/myproductivespace.sg/?hl=en"
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Instagram"

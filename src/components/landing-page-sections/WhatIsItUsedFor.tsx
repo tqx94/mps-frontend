@@ -62,7 +62,7 @@ const items = [
 
 export default function WhatIsItUsedForSection() {
   return (
-    <section id="WhyUs" className="py-1 bg-gray-50 text-gray-900">
+    <section id="WhyUs" className="py-1 bg-gray-50 text-gray-900 pt-20">
   <div className="container mx-auto text-center">
     <h2 className="text-4xl font-serif">What Is It Used For</h2>
     <p className="mt-2 text-gray-600 max-w-2xl mx-auto">

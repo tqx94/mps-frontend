@@ -1,7 +1,7 @@
 // src/components/admin/BookingManagement.tsx - Admin booking management
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,11 +37,12 @@ import {
   formatSingaporeDateOnly,
   formatSingaporeTimeOnly,
   formatBookingDateRange,
-  formatLocalDate
+  formatLocalDate,
+  toDatePickerDate
 } from '@/lib/timezoneUtils'
 import { authenticatedFetch } from '@/lib/apiClient'
 import { getOperatingHours, getClosureDates, OperatingHours, ClosureDate } from '@/lib/shopHoursService'
-import { isSameDay, addDays, setHours, setMinutes } from 'date-fns'
+import { isSameDay, addDays, addMonths, setHours, setMinutes } from 'date-fns'
 
 export function BookingManagement() {
   const { toast } = useToast()
@@ -138,18 +139,54 @@ export function BookingManagement() {
   }
 
   // Helper function to get dates that should be excluded (closure dates)
+  // Only exclude dates where closure completely covers operating hours
   const getExcludedDates = (): Date[] => {
     const excluded: Date[] = []
+
     closureDates.forEach(closure => {
-      const start = new Date(closure.startDate)
-      const end = new Date(closure.endDate)
-      // Add all dates in the closure range
-      let current = new Date(start)
-      while (current <= end) {
-        excluded.push(new Date(current))
-        current.setDate(current.getDate() + 1)
+      // Convert UTC dates to local timezone
+      const closureStart = new Date(closure.startDate)
+      const closureEnd = new Date(closure.endDate)
+
+      // Get local date components (date only, without time)
+      const closureStartDate = new Date(closureStart.getFullYear(), closureStart.getMonth(), closureStart.getDate())
+      const closureEndDate = new Date(closureEnd.getFullYear(), closureEnd.getMonth(), closureEnd.getDate())
+
+      // Get time components in local timezone
+      const closureStartTime = closureStart.getHours() * 60 + closureStart.getMinutes() // Minutes since midnight
+      const closureEndTime = closureEnd.getHours() * 60 + closureEnd.getMinutes()
+
+      // Check each date in the closure range
+      let currentDate = new Date(closureStartDate)
+      while (currentDate <= closureEndDate) {
+        const dayOfWeek = currentDate.getDay()
+        const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+
+        if (dayHours) {
+          // Parse operating hours
+          const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number)
+          const [closeHours, closeMinutes] = dayHours.closeTime.split(':').map(Number)
+          const operatingStartTime = openHours * 60 + openMinutes
+          const operatingEndTime = closeHours * 60 + closeMinutes
+
+          // Check if closure completely covers operating hours for this date
+          // Closure must start before/at operating start AND end after/at operating end
+          const isFullDayClosure = closureStartTime <= operatingStartTime && closureEndTime >= operatingEndTime
+
+          if (isFullDayClosure) {
+            excluded.push(new Date(currentDate))
+          }
+        } else {
+          // If no operating hours for this day, exclude it if closure covers full day (00:00 to 23:59)
+          if (closureStartTime === 0 && closureEndTime >= 1439) {
+            excluded.push(new Date(currentDate))
+          }
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1)
       }
     })
+
     return excluded
   }
 
@@ -184,11 +221,89 @@ export function BookingManagement() {
       const closeTime = dayHours.closeTime.substring(0, 5);
 
       if (timeString >= openTime && timeString <= closeTime) {
-        times.push(time);
+        // Check if this time slot falls within any closure period
+        const isInClosure = closureDates.some(closure => {
+          const closureStart = new Date(closure.startDate) // UTC -> local timezone
+          const closureEnd = new Date(closure.endDate) // UTC -> local timezone
+          
+          // Check if currentTime falls within the closure period
+          return time.getTime() >= closureStart.getTime() && 
+                 time.getTime() < closureEnd.getTime()
+        })
+        
+        // Only add time if it's NOT in a closure period
+        if (!isInClosure) {
+          times.push(time);
+        }
       }
     }
     return times;
   };
+
+  // Helper function to get available end times
+  const getAvailableEndTimes = (date: Date | null): Date[] => {
+    // If no start date, return empty array
+    if (!editFormData.startAt) return [];
+
+    // End date must be same day as start date, so always use startDate's date
+    const startDate = new Date(editFormData.startAt);
+    const targetDate = startDate;
+    const times = getAvailableTimes(targetDate);
+    if (!times.length) return times;
+
+    // Filter based on start time (must be >= start time + 1 hour)
+    const minEndTime = new Date(startDate.getTime() + 60 * 60 * 1000);
+
+    // Since end date is always same day, filter times to be >= start + 1 hour
+    return times.filter(time => {
+      // Compare the time portion - time should be >= minEndTime
+      return time.getTime() >= minEndTime.getTime();
+    });
+  };
+
+  // Helper function to get start time constraints
+  const getStartTimeConstraints = () => {
+    const selectedDate = editFormData.startAt ? new Date(editFormData.startAt) : new Date()
+    const today = new Date()
+
+    // If booking for today, minimum time is current time
+    if (isSameDay(selectedDate, today)) {
+      return {
+        minTime: new Date(),
+        maxTime: setHours(setMinutes(selectedDate, 59), 23) // Until 11:59 PM
+      }
+    }
+
+    // For future dates, allow full day for the selected date
+    const futureDate = new Date(selectedDate)
+    return {
+      minTime: setHours(setMinutes(futureDate, 0), 0), // From 12:00 AM of selected date
+      maxTime: setHours(setMinutes(futureDate, 59), 23) // Until 11:59 PM of selected date
+    }
+  }
+
+  // Helper function to get end time constraints
+  const getEndTimeConstraints = () => {
+    if (!editFormData.startAt || !editFormData.endAt) {
+      return {
+        minTime: setHours(setMinutes(new Date(), 0), 0),
+        maxTime: setHours(setMinutes(new Date(), 59), 23)
+      }
+    }
+
+    const startDate = new Date(editFormData.startAt);
+    const endDate = new Date(editFormData.endAt);
+
+    // Minimum end time is start time + 1 hour (60 minutes)
+    const minEndTime = new Date(startDate.getTime() + 60 * 60 * 1000)
+
+    // End date must be same day as start date (no next day allowed)
+    // Since end date is always same day, we only need same day logic
+    return {
+      minTime: minEndTime, // Must be at least 1 hour after start time
+      maxTime: setHours(setMinutes(endDate, 59), 23) // Until 11:59 PM same day
+    }
+  }
 
 
   // Load dashboard data
@@ -237,7 +352,7 @@ export function BookingManagement() {
     fetchLocations()
   }, [])
 
-  const loadBookings = async () => {
+  const loadBookings = useCallback(async () => {
     try {
       setLoading(true)
       const response = await getAdminBookings(filters)
@@ -263,7 +378,7 @@ export function BookingManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters, toast])
 
   useEffect(() => {
     loadDashboard()
@@ -316,7 +431,7 @@ export function BookingManagement() {
 
   useEffect(() => {
     loadBookings()
-  }, [filters])
+  }, [loadBookings])
 
   // Handle filter changes
   const handleFilterChange = (key: keyof BookingFilters, value: any) => {
@@ -343,9 +458,18 @@ export function BookingManagement() {
   // Handle edit booking
   const handleEdit = (booking: Booking) => {
     setEditingBooking(booking)
+    // Ensure dates are treated as UTC by adding 'Z' if not present
+    // Then create Date objects which JavaScript will automatically convert to local timezone for display
+    const startDateStr = booking.startAt.endsWith('Z') ? booking.startAt : booking.startAt + 'Z'
+    const endDateStr = booking.endAt.endsWith('Z') ? booking.endAt : booking.endAt + 'Z'
+    
+    const startDate = new Date(startDateStr)
+    const endDate = new Date(endDateStr)
+    
+    // Store as ISO strings - DatePicker will correctly display local time when we do new Date()
     setEditFormData({
-      startAt: booking.startAt.slice(0, 16), // Format for datetime-local input
-      endAt: booking.endAt.slice(0, 16),
+      startAt: startDate.toISOString(),
+      endAt: endDate.toISOString(),
       location: booking.location,
       specialRequests: booking.specialRequests || '',
       totalAmount: booking.totalAmount
@@ -1063,8 +1187,11 @@ export function BookingManagement() {
                   placeholderText="Select start time"
                   className="w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none transition-colors"
                   wrapperClassName="w-full"
+                  minDate={new Date()}
+                  maxDate={addMonths(new Date(), 2)}
                   excludeDates={getExcludedDates()}
                   includeTimes={getAvailableTimes(editFormData.startAt ? new Date(editFormData.startAt) : null)}
+                  {...getStartTimeConstraints()}
                 />
               </div>
             </div>
@@ -1080,9 +1207,12 @@ export function BookingManagement() {
                   placeholderText="Select end time"
                   className="w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none transition-colors"
                   wrapperClassName="w-full"
+                  minDate={editFormData.startAt ? new Date(editFormData.startAt) : new Date()}
+                  maxDate={editFormData.startAt ? new Date(editFormData.startAt) : addMonths(new Date(), 2)}
                   excludeDates={getExcludedDates()}
-                  includeTimes={getAvailableTimes(editFormData.endAt ? new Date(editFormData.endAt) : null)}
-                  minDate={editFormData.startAt ? new Date(editFormData.startAt) : undefined}
+                  includeTimes={getAvailableEndTimes(editFormData.endAt ? new Date(editFormData.endAt) : null)}
+                  {...getEndTimeConstraints()}
+                  disabled={!editFormData.startAt}
                 />
               </div>
             </div>

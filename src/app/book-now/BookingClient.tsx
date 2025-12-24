@@ -502,13 +502,99 @@ export default function BookingClient() {
     }
   }, [searchParams, userPackages, selectedPackage, toast])
 
+  // Helper function to get closure periods that overlap with booking time
+  const getOverlappingClosures = (startTime: Date, endTime: Date): ClosureDate[] => {
+    if (!startTime || !endTime || endTime <= startTime) {
+      return []
+    }
+
+    const overlapping: ClosureDate[] = []
+    
+    closureDates.forEach(closure => {
+      const closureStart = new Date(closure.startDate) // UTC -> local timezone
+      const closureEnd = new Date(closure.endDate) // UTC -> local timezone
+      
+      // Check if closure overlaps with our time range
+      if (closureStart.getTime() < endTime.getTime() && closureEnd.getTime() > startTime.getTime()) {
+        overlapping.push(closure)
+      }
+    })
+    
+    return overlapping
+  }
+
+  // Helper function to calculate actual operating hours between two times, excluding closures
+  const calculateActualOperatingHours = (startTime: Date, endTime: Date): number => {
+    if (!startTime || !endTime || endTime <= startTime) {
+      return 0
+    }
+
+    // Bookings are same-day only, so we can check the day's operating hours
+    if (!isSameDay(startTime, endTime)) {
+      // This shouldn't happen for valid bookings, but return 0 if dates differ
+      return 0
+    }
+
+    const dayOfWeek = startTime.getDay()
+    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+
+    if (!dayHours) {
+      return 0
+    }
+
+    // Get operating hours for the day
+    const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number)
+    const [closeHours, closeMinutes] = dayHours.closeTime.split(':').map(Number)
+
+    const openTime = new Date(startTime)
+    openTime.setHours(openHours, openMinutes, 0, 0)
+
+    const closeTime = new Date(startTime)
+    closeTime.setHours(closeHours, closeMinutes, 0, 0)
+
+    // Clamp start and end times to operating hours
+    const actualStart = startTime.getTime() > openTime.getTime() ? startTime.getTime() : openTime.getTime()
+    const actualEnd = endTime.getTime() < closeTime.getTime() ? endTime.getTime() : closeTime.getTime()
+
+    if (actualStart >= actualEnd) {
+      return 0
+    }
+
+    // Calculate total time within operating hours
+    let totalMs = actualEnd - actualStart
+
+    // Subtract any closure periods that overlap with our time range
+    closureDates.forEach(closure => {
+      const closureStart = new Date(closure.startDate) // UTC -> local timezone
+      const closureEnd = new Date(closure.endDate) // UTC -> local timezone
+
+      // Check if closure overlaps with our time range
+      // Closure overlaps if: closureStart < actualEnd AND closureEnd > actualStart
+      // Note: closureEnd is exclusive (shop reopens at closureEnd, so that time is chargeable)
+      if (closureStart.getTime() < actualEnd && closureEnd.getTime() > actualStart) {
+        // Calculate overlap period
+        // overlapStart is the later of closureStart and actualStart
+        const overlapStart = closureStart.getTime() > actualStart ? closureStart.getTime() : actualStart
+        // overlapEnd is the earlier of closureEnd and actualEnd, but closureEnd is exclusive
+        const overlapEnd = closureEnd.getTime() <= actualEnd ? closureEnd.getTime() : actualEnd
+        const overlapMs = Math.max(0, overlapEnd - overlapStart)
+
+        // Subtract closure overlap from total time
+        totalMs -= overlapMs
+      }
+    })
+
+    // Convert to hours and ensure non-negative
+    return Math.max(0, totalMs / (1000 * 60 * 60))
+  }
+
   useEffect(() => {
     if (startDate && endDate) {
       // Convert local time to UTC for database storage
       const startAt = fromDatePickerToUTC(startDate);
       const endAt = fromDatePickerToUTC(endDate);
-      const durationMs = endDate.getTime() - startDate.getTime();
-      const durationHours = durationMs / (1000 * 60 * 60);
+      // Calculate actual operating hours, excluding closures
+      const durationHours = calculateActualOperatingHours(startDate, endDate);
 
       setBookingDuration({
         startAt,
@@ -518,7 +604,7 @@ export default function BookingClient() {
     } else {
       setBookingDuration(undefined);
     }
-  }, [startDate, endDate])
+  }, [startDate, endDate, closureDates, operatingHours])
 
   const { minTime, maxTime } = getSingaporeTimeConstraints()
   // minDate should be TODAY (not 30 minutes from now) to allow same-day booking
@@ -869,7 +955,20 @@ export default function BookingClient() {
       const closeTime = dayHours.closeTime.substring(0, 5);
 
       if (timeString >= openTime && timeString <= closeTime) {
-        times.push(time);
+        // Check if this time slot falls within any closure period
+        const isInClosure = closureDates.some(closure => {
+          const closureStart = new Date(closure.startDate) // UTC -> local timezone
+          const closureEnd = new Date(closure.endDate) // UTC -> local timezone
+          
+          // Check if currentTime falls within the closure period
+          return time.getTime() >= closureStart.getTime() && 
+                 time.getTime() < closureEnd.getTime()
+        })
+        
+        // Only add time if it's NOT in a closure period
+        if (!isInClosure) {
+          times.push(time);
+        }
       }
     }
     return times;
@@ -1476,7 +1575,7 @@ export default function BookingClient() {
   // Memoize available end times to avoid recalculation on every render
   const availableEndTimes = useMemo(() => {
     return getAvailableEndTimes(endDate)
-  }, [endDate, startDate, operatingHours])
+  }, [endDate, startDate, operatingHours, closureDates])
 
   const isFormValid =
     location &&
@@ -2393,6 +2492,48 @@ export default function BookingClient() {
                         <span>Duration</span>
                         <span>{bookingDuration ? bookingDuration.durationHours.toFixed(2) : totalHours} hours</span>
                       </div>
+                      
+                      {/* Show closure exclusion notice if closures exist in booking period */}
+                      {(() => {
+                        if (!startDate || !endDate || !bookingDuration) return null;
+                        const overlappingClosures = getOverlappingClosures(startDate, endDate);
+                        const simpleHoursDiff = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+                        const closureHours = simpleHoursDiff - bookingDuration.durationHours;
+                        
+                        // Show message if closures exist and some hours were excluded (difference > 0.1 to account for rounding)
+                        if (overlappingClosures.length > 0 && closureHours > 0.1) {
+                          return (
+                            <div className="mt-2 pt-2 border-t border-gray-200">
+                              <div className="text-orange-700 font-medium mb-1 flex items-center gap-1 text-xs">
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                Shop Closure Periods Excluded
+                              </div>
+                              <div className="text-xs text-gray-600 space-y-1">
+                                <div>
+                                  Shop closure periods ({closureHours.toFixed(2)} hours) have been excluded from the booking calculation because the shop is closed during this time.
+                                </div>
+                                <div className="font-medium mt-1">Closure periods in this booking:</div>
+                                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                                  {overlappingClosures.map((closure, idx) => {
+                                    const closureStart = new Date(closure.startDate);
+                                    const closureEnd = new Date(closure.endDate);
+                                    return (
+                                      <li key={idx}>
+                                        {formatSingaporeDate(closureStart)} - {formatSingaporeDate(closureEnd)}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                                <div className="text-blue-700 mt-1 font-medium">
+                                  ✓ You are only charged for operating hours, not closure periods.
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                      
                       <div className="flex justify-between">
                         <span>People</span>
                         <span>{people}</span>
