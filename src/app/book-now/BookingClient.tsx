@@ -685,19 +685,52 @@ export default function BookingClient() {
 
   }, [searchParams, bookingId])
 
+  // Delete unpaid booking when payment is cancelled
+  const deleteUnpaidBooking = useCallback(async (bookingIdToDelete: string) => {
+    try {
+      
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/booking/deleteUnpaidBooking`, {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId: bookingIdToDelete
+        })
+      })
+
+      if (response.ok) {
+        
+        localStorage.removeItem('currentBooking')
+      } else {
+        const errorData = await response.json()
+       
+      }
+    } catch (error) {
+      console.error('Error deleting unpaid booking:', error)
+      // Don't show error to user - booking will be cleaned up by cron job
+    }
+  }, [])
+
   // Handle booking confirmation when step 3 loads
   useEffect(() => {
     if (bookingStep === 3) {
       // Check if payment was canceled or failed before attempting confirmation
       const paymentStatus = searchParams.get('status')
+      const urlBookingId = searchParams.get('bookingId')
+      const currentBookingId = urlBookingId || bookingId
+      
       if (isPaymentFailed(paymentStatus)) {
         setConfirmationStatus('error')
         setConfirmationError('Payment was not completed. Your booking has not been confirmed.')
+        
+        // Immediately delete the unpaid booking when payment is cancelled
+        if (currentBookingId) {
+          deleteUnpaidBooking(currentBookingId)
+        }
+        
         return
       }
       confirmBooking()
     }
-  }, [bookingStep, searchParams, bookingId])
+  }, [bookingStep, searchParams, bookingId, deleteUnpaidBooking])
 
 
 
