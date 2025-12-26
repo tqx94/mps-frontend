@@ -13,7 +13,7 @@ const menuLinks = [
   { label: 'Pricing', href: '#Pricing' },
 
 ]
-const infoLinks = ['Spaces', 'Booking Types', 'Terms & Conditions']
+const infoLinks = [ 'Booking Types', 'Terms & Conditions']
 
 const whatsappInfo = {
   number: "+65 8920 2462",
