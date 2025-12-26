@@ -1,15 +1,13 @@
 // src/components/BookingForm.tsx
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import Image from 'next/image'
-import DatePicker from 'react-datepicker'
-import 'react-datepicker/dist/react-datepicker.css'
 
-// date‐fns helpers to compare dates & get end of day
-import { isSameDay, endOfDay, addMonths, addDays, setHours, setMinutes } from 'date-fns'
+// date‐fns helpers to compare dates
+import { isSameDay } from 'date-fns'
 
 import { ChevronDown } from 'lucide-react'
 
@@ -17,10 +15,9 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 
 import { PeopleSelector } from '@/components/PeopleSelector'
+import { DateTimeRangePicker } from '@/components/DateTimeRangePicker'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/use-toast'
-import { getOperatingHours, getClosureDates, OperatingHours, ClosureDate } from '@/lib/shopHoursService'
-import { Loader2 } from 'lucide-react'
 
 export default function BookingForm() {
   const router = useRouter()
@@ -44,420 +41,6 @@ export default function BookingForm() {
     total: 1
   })
 
-  // Shop hours state
-  const [operatingHours, setOperatingHours] = useState<OperatingHours[]>([])
-  const [closureDates, setClosureDates] = useState<ClosureDate[]>([])
-  const [isLoadingShopHours, setIsLoadingShopHours] = useState(false)
-
-  // Load shop hours on mount
-  useEffect(() => {
-    const loadShopHours = async () => {
-      setIsLoadingShopHours(true)
-      try {
-        // Hardcoded to Kovan as per UI
-        const [hours, closures] = await Promise.all([
-          getOperatingHours('Kovan'),
-          getClosureDates('Kovan')
-        ])
-        setOperatingHours(hours)
-        setClosureDates(closures)
-        console.log('✅ Shop hours loaded:', hours)
-      } catch (error) {
-        console.error('Error loading shop hours:', error)
-      } finally {
-        setIsLoadingShopHours(false)
-      }
-    }
-
-    loadShopHours()
-  }, [])
-
-  // Calculate max date (2 months from today)
-  const maxBookingDate = addMonths(new Date(), 2)
-
-  // Helper function to STRICTLY enforce 15-minute intervals
-  const enforceStrict15Minutes = (date: Date | null): Date | null => {
-    if (!date) return null;
-
-    const strictDate = new Date(date);
-    const minutes = strictDate.getMinutes();
-    const remainder = minutes % 15;
-
-    // Reject any time that's not on a 15-minute boundary
-    if (remainder !== 0) {
-      // Always round DOWN to the previous 15-minute mark for strict enforcement
-      const validMinutes = minutes - remainder;
-      strictDate.setMinutes(validMinutes);
-      strictDate.setSeconds(0);
-      strictDate.setMilliseconds(0);
-    } else {
-      // Time is already on 15-minute boundary, just clear seconds/milliseconds
-      strictDate.setSeconds(0);
-      strictDate.setMilliseconds(0);
-    }
-
-    return strictDate;
-  };
-
-  // Helper function to get dates that should be excluded (closure dates)
-  // Only exclude dates where closure completely covers operating hours
-  const getExcludedDates = (): Date[] => {
-    const excluded: Date[] = []
-
-    closureDates.forEach(closure => {
-      // Convert UTC dates to local timezone
-      const closureStart = new Date(closure.startDate)
-      const closureEnd = new Date(closure.endDate)
-
-      // Get local date components (date only, without time)
-      const closureStartDate = new Date(closureStart.getFullYear(), closureStart.getMonth(), closureStart.getDate())
-      const closureEndDate = new Date(closureEnd.getFullYear(), closureEnd.getMonth(), closureEnd.getDate())
-
-      // Get time components in local timezone
-      const closureStartTime = closureStart.getHours() * 60 + closureStart.getMinutes() // Minutes since midnight
-      const closureEndTime = closureEnd.getHours() * 60 + closureEnd.getMinutes()
-
-      // Check each date in the closure range
-      let currentDate = new Date(closureStartDate)
-      while (currentDate <= closureEndDate) {
-        const dayOfWeek = currentDate.getDay()
-        const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
-
-        if (dayHours) {
-          // Parse operating hours
-          const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number)
-          const [closeHours, closeMinutes] = dayHours.closeTime.split(':').map(Number)
-          const operatingStartTime = openHours * 60 + openMinutes
-          const operatingEndTime = closeHours * 60 + closeMinutes
-
-          // Check if closure completely covers operating hours for this date
-          // Closure must start before/at operating start AND end after/at operating end
-          const isFullDayClosure = closureStartTime <= operatingStartTime && closureEndTime >= operatingEndTime
-
-          if (isFullDayClosure) {
-            excluded.push(new Date(currentDate))
-          }
-        } else {
-          // If no operating hours for this day, exclude it if closure covers full day (00:00 to 23:59)
-          if (closureStartTime === 0 && closureEndTime >= 1439) {
-            excluded.push(new Date(currentDate))
-          }
-        }
-
-        currentDate.setDate(currentDate.getDate() + 1)
-      }
-    })
-
-    return excluded
-  }
-
-  // Helper to generate available times for a given date based on operating hours
-  const getAvailableTimes = (date: Date | null): Date[] => {
-    if (!date) return [];
-
-    const dayOfWeek = date.getDay();
-    const now = new Date();
-    const isToday = isSameDay(date, now);
-
-    // Log for debugging
-    console.log('🕐 Getting available times for:', {
-      date: date.toDateString(),
-      dayOfWeek,
-      isToday,
-      currentTime: now.toLocaleTimeString(),
-      operatingHoursLoaded: operatingHours.length,
-      isLoadingShopHours
-    });
-
-    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive);
-
-    // CRITICAL: Always show times even if hours aren't loaded yet (fallback)
-    if (operatingHours.length === 0 || !dayHours) {
-      console.log('⚠️ Using fallback times - shop hours not loaded or day closed');
-      const times: Date[] = [];
-      const start = new Date(date);
-      start.setHours(0, 0, 0, 0);
-      for (let i = 0; i < 24 * 4; i++) {
-        const time = new Date(start.getTime() + i * 15 * 60 * 1000);
-        // For same-day bookings, only include future times
-        if (!isToday || time > now) {
-          times.push(time);
-        }
-      }
-      return times;
-    }
-
-    console.log('✅ Using shop hours:', dayHours);
-    const times: Date[] = [];
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-
-    // Generate 15-min intervals within shop hours
-    for (let i = 0; i < 24 * 4; i++) {
-      const time = new Date(start.getTime() + i * 15 * 60 * 1000);
-      const timeString = time.toTimeString().split(' ')[0].substring(0, 5);
-
-      const openTime = dayHours.openTime.substring(0, 5);
-      const closeTime = dayHours.closeTime.substring(0, 5);
-
-      // Check if time is within operating hours
-      if (timeString >= openTime && timeString <= closeTime) {
-        // Check if this time slot falls within any closure period
-        const isInClosure = closureDates.some(closure => {
-          const closureStart = new Date(closure.startDate) // UTC -> local timezone
-          const closureEnd = new Date(closure.endDate) // UTC -> local timezone
-          
-          // Check if currentTime falls within the closure period
-          return time.getTime() >= closureStart.getTime() && 
-                 time.getTime() < closureEnd.getTime()
-        })
-        
-        // Only add time if it's NOT in a closure period
-        if (!isInClosure) {
-          // For same-day bookings, only include times in the future
-          if (!isToday || time > now) {
-            times.push(time);
-          }
-        }
-      }
-    }
-
-    console.log(`📋 Generated ${times.length} available times for ${date.toDateString()}`);
-    return times;
-  };
-
-  const getAvailableEndTimes = (date: Date | null): Date[] => {
-    // If no start date, return empty array
-    if (!startDate) return [];
-
-    // End date must be same day as start date, so always use startDate's date
-    const targetDate = startDate;
-    const times = getAvailableTimes(targetDate);
-    if (!times.length) return times;
-
-    // Filter based on start time (must be >= start time + 1 hour)
-    const minEndTime = new Date(startDate.getTime() + 60 * 60 * 1000);
-
-    // Since end date is always same day, filter times to be >= start + 1 hour
-    return times.filter(time => {
-      // Compare the time portion - time should be >= minEndTime
-      return time.getTime() >= minEndTime.getTime();
-    });
-  };
-
-  // Helper function to round UP to next 15-minute interval
-  const roundUpToNext15Minutes = (date: Date): Date => {
-    const rounded = new Date(date);
-    const minutes = rounded.getMinutes();
-    const remainder = minutes % 15;
-
-    if (remainder !== 0) {
-      // Round UP to next 15-minute mark
-      const validMinutes = minutes + (15 - remainder);
-      rounded.setMinutes(validMinutes);
-      rounded.setSeconds(0);
-      rounded.setMilliseconds(0);
-    } else {
-      // Already on 15-minute boundary, just clear seconds/milliseconds
-      rounded.setSeconds(0);
-      rounded.setMilliseconds(0);
-    }
-
-    return rounded;
-  };
-
-  // Helper function to get optimal start time based on shop hours
-  const getOptimalStartTime = (selectedDate: Date): Date => {
-    const now = new Date()
-    const isToday = isSameDay(selectedDate, now)
-    const dayOfWeek = selectedDate.getDay()
-    
-    // Get shop hours for the selected day
-    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
-    
-    // If no shop hours found
-    if (!dayHours || operatingHours.length === 0) {
-      if (isToday) {
-        // For today: round current time UP to next 15-minute interval
-        return roundUpToNext15Minutes(now)
-      }
-      // For future dates without shop hours: use 9 AM as default
-      const defaultTime = new Date(selectedDate)
-      defaultTime.setHours(9, 0, 0, 0)
-      return defaultTime
-    }
-    
-    // Parse shop open time
-    const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number)
-    const openTime = new Date(selectedDate)
-    openTime.setHours(openHours, openMinutes, 0, 0)
-    
-    if (isToday) {
-      // For today: compare current time with shop open time
-      const currentRounded = roundUpToNext15Minutes(now)
-      
-      // If current time is before shop open time, use shop open time
-      if (currentRounded < openTime) {
-        return openTime
-      }
-      
-      // If current time is after or equal to shop open time, use current time
-      return currentRounded
-    } else {
-      // For future dates: use shop open time
-      return openTime
-    }
-  }
-
-  // Handler for when user clicks on calendar date (onSelect event)
-  // This fires specifically when user clicks on a date in the calendar
-  const handleDateSelect = (date: Date | null) => {
-    if (!date) return
-    
-    // When user clicks on calendar date, set optimal time based on shop hours
-    const optimalTime = getOptimalStartTime(date)
-    const validDate = enforceStrict15Minutes(optimalTime)
-    setStartDate(validDate)
-    setEndDate(null) // Clear end date to force user to select
-  }
-
-  // Handler for when date/time changes (onChange event)
-  // This fires when user manually changes time or when onSelect updates the date
-  const handleStartChange = (date: Date | null) => {
-    if (!date) {
-      setStartDate(null)
-      setEndDate(null)
-      return
-    }
-
-    // Check if this is a date-only selection (time is 00:00:00)
-    // This handles cases where onSelect might not fire or when date is set programmatically
-    const isDateOnlySelection = date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0
-    
-    let finalDate: Date
-    
-    if (isDateOnlySelection) {
-      // Date-only selection - set optimal time based on shop hours
-      const optimalTime = getOptimalStartTime(date)
-      finalDate = optimalTime
-    } else {
-      // User manually selected time - use the selected date/time as is
-      finalDate = date
-    }
-    
-    const validDate = enforceStrict15Minutes(finalDate)
-    setStartDate(validDate)
-    setEndDate(null) // Clear end date to force user to select
-  }
-
-  const handleEndChange = (date: Date | null) => {
-    const validDate = enforceStrict15Minutes(date);
-
-    // Prevent selecting past end times
-    if (validDate && startDate) {
-      const now = new Date();
-      const minEndTime = new Date(startDate.getTime() + 60 * 60 * 1000); // Start + 1 hour
-
-      // If selecting today and end time is before current time + 1 hour from start
-      if (isSameDay(validDate, now) && validDate < minEndTime && minEndTime > now) {
-        // Don't allow past times
-        alert('End time cannot be in the past. Please select a future time.');
-        return;
-      }
-
-      // Ensure end time is at least 1 hour after start time
-      if (validDate <= startDate) {
-        alert('End time must be after start time');
-        return;
-      }
-
-      if (validDate < minEndTime) {
-        alert('End time must be at least 1 hour after start time');
-        return;
-      }
-    }
-
-    setEndDate(validDate)
-  }
-
-  const getEndDateConstraints = () => {
-    if (!startDate) return { minDate: new Date(), maxDate: maxBookingDate }
-
-    // End date must be same day as start date (no next day allowed)
-    const minEndDate = startDate
-    const maxEndDate = endOfDay(startDate) // Same day only, until end of day
-
-    return {
-      minDate: minEndDate,
-      maxDate: maxEndDate > maxBookingDate ? maxBookingDate : maxEndDate
-    }
-  }
-
-  const getEndTimeConstraints = () => {
-    if (!startDate || !endDate) {
-      return {
-        minTime: setHours(setMinutes(new Date(), 0), 0),
-        maxTime: setHours(setMinutes(new Date(), 59), 23)
-      }
-    }
-
-    // Minimum end time is start time + 1 hour (60 minutes)
-    const minEndTime = new Date(startDate.getTime() + 60 * 60 * 1000)
-
-    // End date must be same day as start date (no next day allowed)
-    // Since end date is always same day, we only need same day logic
-    return {
-      minTime: minEndTime, // Must be at least 1 hour after start time
-      maxTime: setHours(setMinutes(endDate, 59), 23) // Until 11:59 PM same day
-    }
-  }
-
-  const getStartTimeConstraints = () => {
-    const selectedDate = startDate || new Date()
-    const today = new Date()
-
-    // If booking for today, minimum time is current time
-    if (isSameDay(selectedDate, today)) {
-      return {
-        minTime: new Date(),
-        maxTime: setHours(setMinutes(new Date(), 59), 23) // Until 11:59 PM
-      }
-    }
-
-    // For future dates, allow full day
-    return {
-      minTime: setHours(setMinutes(new Date(), 0), 0), // From 12:00 AM
-      maxTime: setHours(setMinutes(new Date(), 59), 23) // Until 11:59 PM
-    }
-  }
-
-
-  const getInitialEndTimeConstraints = () => {
-    if (!startDate) {
-      return {
-        minTime: setHours(setMinutes(new Date(), 0), 0),
-        maxTime: setHours(setMinutes(new Date(), 59), 23)
-      }
-    }
-
-    // Minimum end time is start time + 1 hour (60 minutes)
-    const minEndTime = new Date(startDate.getTime() + 60 * 60 * 1000)
-
-    // For today's date, start from the start time + 1 hour
-    const today = new Date()
-    if (isSameDay(startDate, today)) {
-      return {
-        minTime: minEndTime,
-        maxTime: setHours(setMinutes(today, 59), 23)
-      }
-    }
-
-    // For future dates, still need 1 hour minimum
-    return {
-      minTime: minEndTime,
-      maxTime: setHours(setMinutes(new Date(), 59), 23)
-    }
-  }
 
   const handleBookNow = () => {
     // Validate required fields
@@ -501,15 +84,6 @@ export default function BookingForm() {
       return
     }
 
-    // Check if end date is same day as start date (no next day bookings allowed)
-    if (!isSameDay(startDate, endDate)) {
-      toast({
-        title: "Invalid Booking Period",
-        description: "End date must be on the same day as start date. Next day bookings are not allowed.",
-        variant: "destructive",
-      })
-      return
-    }
 
     // Check if user is logged in, redirect to login if not logged in
     if (!user) {
@@ -574,13 +148,6 @@ export default function BookingForm() {
       localStorage.removeItem('home-page-people-selector')
     }
   }
-  const { minDate: endMinDate, maxDate: endMaxDate } = getEndDateConstraints()
-  const endTimeConstraints = endDate ? getEndTimeConstraints() : getInitialEndTimeConstraints()
-  
-  // Memoize available end times to avoid recalculation on every render
-  const availableEndTimes = useMemo(() => {
-    return getAvailableEndTimes(endDate)
-  }, [endDate, startDate, operatingHours])
 
   return (
     <section id="BookNow" className="pt-16 overflow-x-hidden w-full">
@@ -637,58 +204,16 @@ export default function BookingForm() {
               </div>
 
               {/* DATE & TIME RANGE */}
-              <div className="flex space-x-4">
-                {/* From */}
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-500 uppercase mb-1 text-left flex items-center gap-2">
-                    From
-                    {isLoadingShopHours && <Loader2 className="h-3 w-3 animate-spin text-orange-500" />}
-                  </label>
-                  <DatePicker
-                    selected={startDate}
-                    onChange={handleStartChange}
-                    onSelect={handleDateSelect}
-                    onChangeRaw={(e) => e?.preventDefault()}
-                    selectsStart
-                    startDate={startDate}
-                    endDate={endDate}
-                    showTimeSelect
-                    timeIntervals={15}
-                    includeTimes={getAvailableTimes(startDate)}
-                    dateFormat="MMM d, yyyy h:mm aa"
-                    placeholderText="Start"
-                    className="w-44 pl-0 border-b border-gray-300 pb-1 focus:outline-none text-black"
-                    minDate={new Date()}
-                    maxDate={maxBookingDate}
-                    excludeDates={getExcludedDates()}
-                    {...getStartTimeConstraints()}
-                  />
-                </div>
-
-                {/* To */}
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-500 uppercase mb-1 text-left">To</label>
-                  <DatePicker
-                    selected={endDate}
-                    onChange={handleEndChange}
-                    onChangeRaw={(e) => e?.preventDefault()}
-                    selectsEnd
-                    startDate={startDate}
-                    endDate={endDate}
-                    minDate={endMinDate}
-                    maxDate={endMaxDate}
-                    showTimeSelect
-                    timeIntervals={15}
-                    includeTimes={availableEndTimes}
-                    dateFormat="MMM d, yyyy h:mm aa"
-                    placeholderText="End"
-                    className="w-44 pl-0 border-b border-gray-300 pb-1 focus:outline-none text-black"
-                    disabled={!startDate}
-                    excludeDates={getExcludedDates()}
-                    {...endTimeConstraints}
-                  />
-                </div>
-              </div>
+              <DateTimeRangePicker
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                location="Kovan"
+                dateFormat="MMM d, yyyy h:mm aa"
+                placeholderStart="Start"
+                placeholderEnd="End"
+              />
 
               {/* BOOK BUTTON */}
               <Button
@@ -743,49 +268,17 @@ export default function BookingForm() {
               </div>
 
               {/* Row 2: Date Range */}
-              <div className="flex space-x-4">
-                <div className="flex flex-col flex-1">
-                  <label className="text-xs text-gray-500 uppercase mb-1 text-left">From</label>
-                  <DatePicker
-                    selected={startDate}
-                    onChange={handleStartChange}
-                    onSelect={handleDateSelect}
-                    onChangeRaw={(e) => e?.preventDefault()}
-                    selectsStart
-                    startDate={startDate}
-                    endDate={endDate}
-                    showTimeSelect
-                    includeTimes={getAvailableTimes(startDate)}
-                    dateFormat="MMM d, h:mm aa"
-                    placeholderText="Start"
-                    className="w-full pl-0 border-b border-gray-300 pb-1 focus:outline-none text-black"
-                    minDate={new Date()}
-                    maxDate={maxBookingDate}
-                    {...getStartTimeConstraints()}
-                  />
-                </div>
-
-                <div className="flex flex-col flex-1">
-                  <label className="text-xs text-gray-500 uppercase mb-1 text-left">To</label>
-                  <DatePicker
-                    selected={endDate}
-                    onChange={handleEndChange}
-                    onChangeRaw={(e) => e?.preventDefault()}
-                    selectsEnd
-                    startDate={startDate}
-                    endDate={endDate}
-                    minDate={endMinDate}
-                    maxDate={endMaxDate}
-                    showTimeSelect
-                    includeTimes={availableEndTimes}
-                    dateFormat="MMM d, h:mm aa"
-                    placeholderText="End"
-                    className="w-full pl-0 border-b border-gray-300 pb-1 focus:outline-none text-black"
-                    disabled={!startDate}
-                    {...endTimeConstraints}
-                  />
-                </div>
-              </div>
+              <DateTimeRangePicker
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                location="Kovan"
+                dateFormat="MMM d, yyyy h:mm aa"
+                placeholderStart="Start"
+                placeholderEnd="End"
+                className="flex-1"
+              />
 
               {/* Row 3: Book Button */}
               <div className="flex justify-center">
@@ -841,49 +334,17 @@ export default function BookingForm() {
               </div>
 
               {/* Date Range */}
-              <div className="flex flex-col space-y-3">
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-500 uppercase mb-1 text-left">From</label>
-                  <DatePicker
-                    selected={startDate}
-                    onChange={handleStartChange}
-                    onSelect={handleDateSelect}
-                    onChangeRaw={(e) => e?.preventDefault()}
-                    selectsStart
-                    startDate={startDate}
-                    endDate={endDate}
-                    showTimeSelect
-                    includeTimes={getAvailableTimes(startDate)}
-                    dateFormat="MMM d, h:mm aa"
-                    placeholderText="Start"
-                    className="w-full pl-0 border-b border-gray-300 pb-1 focus:outline-none text-black"
-                    minDate={new Date()}
-                    maxDate={maxBookingDate}
-                    {...getStartTimeConstraints()}
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-500 uppercase mb-1 text-left">To</label>
-                  <DatePicker
-                    selected={endDate}
-                    onChange={handleEndChange}
-                    onChangeRaw={(e) => e?.preventDefault()}
-                    selectsEnd
-                    startDate={startDate}
-                    endDate={endDate}
-                    minDate={endMinDate}
-                    maxDate={endMaxDate}
-                    showTimeSelect
-                    includeTimes={availableEndTimes}
-                    dateFormat="MMM d, h:mm aa"
-                    placeholderText="End"
-                    className="w-full pl-0 border-b border-gray-300 pb-1 focus:outline-none text-black"
-                    disabled={!startDate}
-                    {...endTimeConstraints}
-                  />
-                </div>
-              </div>
+              <DateTimeRangePicker
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                location="Kovan"
+                dateFormat="MMM d, yyyy h:mm aa"
+                placeholderStart="Start"
+                placeholderEnd="End"
+                className="flex-col space-y-3"
+              />
 
               {/* Book Button */}
               <div className="flex justify-center pt-2">
@@ -901,8 +362,7 @@ export default function BookingForm() {
           {/* Helper text for bookings */}
           {startDate && (
             <div className="mt-4 text-xs sm:text-sm text-white/80 max-w-md text-center px-4">
-              <p>💡 End time must be on the same day as start time</p>
-              <p>Bookings are limited to 2 months in advance</p>
+              <p>💡 Bookings are limited to 2 months in advance</p>
             </div>
           )}
         </div>

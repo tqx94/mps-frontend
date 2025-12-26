@@ -43,6 +43,7 @@ import {
 import { authenticatedFetch } from '@/lib/apiClient'
 import { getOperatingHours, getClosureDates, OperatingHours, ClosureDate } from '@/lib/shopHoursService'
 import { isSameDay, addDays, addMonths, setHours, setMinutes } from 'date-fns'
+import { DateTimeRangePicker } from '@/components/DateTimeRangePicker'
 
 export function BookingManagement() {
   const { toast } = useToast()
@@ -1164,46 +1165,20 @@ export function BookingManagement() {
             <DialogTitle>Modify Booking</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="startAt">Start Time</Label>
-              <div className="relative">
-                <DatePicker
-                  selected={editFormData.startAt ? new Date(editFormData.startAt) : null}
-                  onChange={(date) => setEditFormData({ ...editFormData, startAt: date ? date.toISOString() : '' })}
-                  showTimeSelect
-                  timeIntervals={15}
-                  dateFormat="MMM d, yyyy h:mm aa"
-                  placeholderText="Select start time"
-                  className="w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none transition-colors"
-                  wrapperClassName="w-full"
-                  minDate={new Date()}
-                  maxDate={addMonths(new Date(), 2)}
-                  excludeDates={getExcludedDates()}
-                  includeTimes={getAvailableTimes(editFormData.startAt ? new Date(editFormData.startAt) : null)}
-                  {...getStartTimeConstraints()}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="endAt">End Time</Label>
-              <div className="relative">
-                <DatePicker
-                  selected={editFormData.endAt ? new Date(editFormData.endAt) : null}
-                  onChange={(date) => setEditFormData({ ...editFormData, endAt: date ? date.toISOString() : '' })}
-                  showTimeSelect
-                  timeIntervals={15}
-                  dateFormat="MMM d, yyyy h:mm aa"
-                  placeholderText="Select end time"
-                  className="w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none transition-colors"
-                  wrapperClassName="w-full"
-                  minDate={editFormData.startAt ? new Date(editFormData.startAt) : new Date()}
-                  maxDate={editFormData.startAt ? new Date(editFormData.startAt) : addMonths(new Date(), 2)}
-                  excludeDates={getExcludedDates()}
-                  includeTimes={getAvailableEndTimes(editFormData.endAt ? new Date(editFormData.endAt) : null)}
-                  {...getEndTimeConstraints()}
-                  disabled={!editFormData.startAt}
-                />
-              </div>
+            <div className="grid gap-4">
+              <DateTimeRangePicker
+                startDate={editFormData.startAt ? new Date(editFormData.startAt) : null}
+                endDate={editFormData.endAt ? new Date(editFormData.endAt) : null}
+                onStartDateChange={(date) => setEditFormData({ ...editFormData, startAt: date ? date.toISOString() : '', endAt: '' })}
+                onEndDateChange={(date) => setEditFormData({ ...editFormData, endAt: date ? date.toISOString() : '' })}
+                location={editFormData.location || 'Kovan'}
+                dateFormat="MMM d, yyyy h:mm aa"
+                placeholderStart="Select start time"
+                placeholderEnd="Select end time"
+                showLoader={true}
+                fullWidth={true}
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="location">Location</Label>

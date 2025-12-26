@@ -27,6 +27,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 
 import { PeopleSelector } from '@/components/PeopleSelector'
+import { DateTimeRangePicker } from '@/components/DateTimeRangePicker'
 import Navbar from '@/components/Navbar'
 import { FooterSection } from '@/components/landing-page-sections/FooterSection'
 
@@ -1752,65 +1753,20 @@ export default function BookingClient() {
 
                       {/* Date & Time Selection */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                        <div>
-                          <Label className="flex items-center gap-2">
-                            Start Date & Time
-                            {(isLoadingShopHours || isLoadingSeats) && (
-                              <Loader2 className="h-3 w-3 animate-spin text-orange-500" />
-                            )}
-                          </Label>
-                          {/* Get minimum start time constraints */}
-                          <DatePicker
-                            selected={startDate}
-                            onChange={handleStartChange}
-                            onSelect={handleDateSelect}
-                            onChangeRaw={(e) => e?.preventDefault()}
-                            selectsStart
-                            startDate={startDate}
-                            endDate={endDate}
-                            showTimeSelect
-                            timeIntervals={15}
-                            dateFormat="MMM d, h:mm aa"
-                            placeholderText="Select start time"
-                            className={`w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none transition-colors ${!user ? "bg-gray-50" : ""}`}
-                            wrapperClassName="w-full"
-                            minDate={minDate}
-                            maxDate={maxBookingDate}
-                            excludeDates={getExcludedDates()}
-                            includeTimes={getAvailableTimes(startDate)}
-                            {...getStartTimeConstraints()}
-                            disabled={!user}
-                          />
-                        </div>
-
-                        <div>
-                          <Label>End Date & Time</Label>
-                          {/* Get end time constraints */}
-                          <DatePicker
-                            selected={endDate}
-                            onChange={handleEndChange}
-                            onChangeRaw={(e) => e?.preventDefault()}
-                            selectsEnd
-                            startDate={startDate}
-                            endDate={endDate}
-                            minDate={endMinDate}
-                            maxDate={endMaxDate}
-                            showTimeSelect
-                            timeIntervals={15}
-                            includeTimes={availableEndTimes}
-                            excludeDates={getExcludedDates()}
-                            dateFormat="MMM d, h:mm aa"
-                            placeholderText="Select end time"
-                            className={`w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none transition-colors ${!user ? "bg-gray-50" : ""}`}
-                            wrapperClassName="w-full"
-                            {...getEndTimeConstraints()}
-                            disabled={!user || !startDate}
-                          />
-                          {/* {startDate && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              💡 End time must be on the same day as start time
-                          )} */}
-                        </div>
+                        <DateTimeRangePicker
+                          startDate={startDate}
+                          endDate={endDate}
+                          onStartDateChange={setStartDate}
+                          onEndDateChange={setEndDate}
+                          location={locations.find(loc => loc.id === location)?.name || 'Kovan'}
+                          dateFormat="MMM d, h:mm aa"
+                          placeholderStart="Select start time"
+                          placeholderEnd="Select end time"
+                          disabled={!user}
+                          showLoader={true}
+                          fullWidth={true}
+                          className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
+                        />
                       </div>
 
 

@@ -49,6 +49,7 @@ import { FooterSection } from '@/components/landing-page-sections/FooterSection'
 import { authenticatedFetch } from '@/lib/apiClient'
 import { getOperatingHours, getClosureDates, OperatingHours, ClosureDate } from '@/lib/shopHoursService'
 import { isSameDay, addMonths, endOfDay } from 'date-fns'
+import { DateTimeRangePicker } from '@/components/DateTimeRangePicker'
 
 
 // Layout and seat configuration (same as extend page)
@@ -1284,80 +1285,48 @@ export default function ReschedulePage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 sm:space-y-6">
-                  {/* Date Range - Using BookingForm style */}
-                  <div className="flex flex-col space-y-3">
-                    <div className="flex flex-col">
-                      <label className="text-xs text-gray-500 uppercase mb-1 text-left flex items-center gap-2">
-                        From
-                        {isLoadingShopHours && <Loader2 className="h-3 w-3 animate-spin text-orange-500" />}
-                      </label>
-                      <DatePicker
-                        selected={newStartDate}
-                        onChange={(date) => {
-                          setNewStartDate(date)
-                          // Auto-update end date if original duration exists
-                          if (date && originalDuration > 0) {
-                            const calculatedEndDate = new Date(date.getTime() + (originalDuration * 60 * 60 * 1000))
-                            // Ensure end date is on the same day as start date
-                            if (!isSameDay(calculatedEndDate, date)) {
-                              const endOfStartDay = endOfDay(date)
-                              setNewEndDate(endOfStartDay)
-                            } else {
-                              setNewEndDate(calculatedEndDate)
-                            }
-                          }
-                        }}
-                        onSelect={handleDateSelect}
-                        onChangeRaw={(e) => e?.preventDefault()}
-                        selectsStart
-                        startDate={newStartDate}
-                        endDate={newEndDate}
-                        showTimeSelect
-                        includeTimes={getAvailableTimes(newStartDate)}
-                        dateFormat="MMM d, h:mm aa"
-                        placeholderText="Start"
-                        className="w-full pl-0 border-b border-gray-300 pb-1 focus:outline-none text-black"
-                        minDate={new Date()}
-                        maxDate={maxBookingDate}
-                        excludeDates={getExcludedDates()}
-                        timeIntervals={15}
-                        timeFormat="h:mm aa"
-                      />
-                    </div>
-
-                    <div className="flex flex-col">
-                      <label className="text-xs text-gray-500 uppercase mb-1 text-left">To</label>
-                      <DatePicker
-                        selected={newEndDate}
-                        onChange={(date) => {
-                          if (!date || !newStartDate) return
-                          
+                  {/* Date Range - Using DateTimeRangePicker component */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <DateTimeRangePicker
+                      startDate={newStartDate}
+                      endDate={newEndDate}
+                      onStartDateChange={(date) => {
+                        setNewStartDate(date)
+                        // Auto-update end date if original duration exists
+                        if (date && originalDuration > 0) {
+                          const calculatedEndDate = new Date(date.getTime() + (originalDuration * 60 * 60 * 1000))
                           // Ensure end date is on the same day as start date
-                          if (!isSameDay(date, newStartDate)) {
-                            // If user tries to select a different day, set to end of start day
-                            const endOfStartDay = endOfDay(newStartDate)
+                          if (!isSameDay(calculatedEndDate, date)) {
+                            const endOfStartDay = endOfDay(date)
                             setNewEndDate(endOfStartDay)
                           } else {
-                            setNewEndDate(date)
+                            setNewEndDate(calculatedEndDate)
                           }
-                        }}
-                        onChangeRaw={(e) => e?.preventDefault()}
-                        selectsEnd
-                        startDate={newStartDate}
-                        endDate={newEndDate}
-                        minDate={newStartDate || undefined}
-                        maxDate={newStartDate ? endOfDay(newStartDate) : undefined}
-                        showTimeSelect
-                        includeTimes={getAvailableEndTimes(newStartDate)}
-                        dateFormat="MMM d, h:mm aa"
-                        placeholderText="End"
-                        className="w-full pl-0 border-b border-gray-300 pb-1 focus:outline-none text-black"
-                        disabled={!newStartDate}
-                        excludeDates={getExcludedDates()}
-                        timeIntervals={15}
-                        timeFormat="h:mm aa"
-                      />
-                    </div>
+                        }
+                      }}
+                      onEndDateChange={(date) => {
+                        if (!date || !newStartDate) {
+                          setNewEndDate(null)
+                          return
+                        }
+                        
+                        // Ensure end date is on the same day as start date
+                        if (!isSameDay(date, newStartDate)) {
+                          // If user tries to select a different day, set to end of start day
+                          const endOfStartDay = endOfDay(newStartDate)
+                          setNewEndDate(endOfStartDay)
+                        } else {
+                          setNewEndDate(date)
+                        }
+                      }}
+                      location="Kovan"
+                      dateFormat="MMM d, h:mm aa"
+                      placeholderStart="Select start time"
+                      placeholderEnd="Select end time"
+                      showLoader={true}
+                      fullWidth={true}
+                      className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
+                    />
                   </div>
 
                 

@@ -33,6 +33,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { getAllPricingForLocation } from '@/lib/pricingService'
 import { getClosureDates, getOperatingHours, type ClosureDate, type OperatingHours } from '@/lib/shopHoursService'
 import { isSameDay, endOfDay } from 'date-fns'
+import { DateTimeRangePicker } from '@/components/DateTimeRangePicker'
 import {
   toLocalTime,
   toSingaporeTime,
@@ -1072,7 +1073,10 @@ export default function ExtendBookingPage() {
                     {/* Time Selection */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <Label>Current End Time (Fixed)</Label>
+                       
+                        <label className="text-xs text-gray-500 uppercase mb-1 text-left flex items-center gap-2">
+                        Current End Time (Fixed)
+                        </label>
                         <Input
                           value={originalEndDate ? formatLocalDate(originalEndDate) : ''}
                           disabled
@@ -1081,11 +1085,16 @@ export default function ExtendBookingPage() {
                       </div>
 
                       <div>
-                        <Label>New End Time *</Label>
-                        <DatePicker
-                          selected={newEndDate}
-                          onChange={(date) => {
-                            if (!date || !originalEndDate) return
+                     
+                        <DateTimeRangePicker
+                          startDate={originalEndDate}
+                          endDate={newEndDate}
+                          onStartDateChange={() => {}} // No-op, start date is fixed
+                          onEndDateChange={(date) => {
+                            if (!date || !originalEndDate) {
+                              setNewEndDate(null)
+                              return
+                            }
                             
                             // Ensure end date is on the same day as original end date
                             if (!isSameDay(date, originalEndDate)) {
@@ -1096,20 +1105,17 @@ export default function ExtendBookingPage() {
                               setNewEndDate(date)
                             }
                           }}
-                          showTimeSelect
-                          timeIntervals={15}
+                          location={booking?.location || 'Kovan'}
                           dateFormat="MMM d, h:mm aa"
-                          placeholderText="Select new end time"
-                          className="w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none transition-colors"
-                          wrapperClassName="w-full"
-                          minDate={originalEndDate || new Date()}
-                          maxDate={originalEndDate ? endOfDay(originalEndDate) : undefined}
-                          excludeDates={getExcludedDates()}
-                          includeTimes={getAvailableTimes(newEndDate)}
+                          placeholderEnd="Select new end time"
+                          showLoader={true}
+                          fullWidth={true}
+                          endOnly={true}
+                          endOnlyLabel="New End Time"
                         />
-                        <p className="text-xs text-gray-500 mt-1">
+                        {/* <p className="text-xs text-gray-500 mt-1">
                           You can only extend on the same day. Select a time after the current end time.
-                        </p>
+                        </p> */}
                       </div>
                     </div>
 
