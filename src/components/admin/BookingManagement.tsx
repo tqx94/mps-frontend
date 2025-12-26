@@ -851,7 +851,6 @@ export function BookingManagement() {
                       <TableHead>Seats</TableHead>
                       <TableHead>Date & Time</TableHead>
                       <TableHead>Duration</TableHead>
-                      <TableHead>Total Cost</TableHead>
                       <TableHead>Amount Paid</TableHead>
                       <TableHead>Package</TableHead>
                       <TableHead>Refund Status</TableHead>
@@ -913,17 +912,7 @@ export function BookingManagement() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            <div className="font-medium">${booking.totalCost || 0}</div>
-                            {(booking.discountAmount && booking.discountAmount > 0) ? (
-                              <div className="text-xs text-green-600">
-                                -${booking.discountAmount} off
-                              </div>
-                            ) : null}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div className="font-medium">${booking.totalAmount || 0}</div>
+                            <div className="font-medium">${(booking.extensionamounts && booking.extensionamounts.length > 0 ? Number(booking.totalactualcost) : Number(booking.totalAmount)).toFixed(2)}</div>
                           </div>
                         </TableCell>
                         <TableCell>
