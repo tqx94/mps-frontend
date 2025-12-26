@@ -542,11 +542,25 @@ export function DateTimeRangePicker({
           }
         }
       } else {
-        // If selecting different day, just ensure it's after start date
+        // If selecting different day, ensure it's after start date and max 24 hours
         if (validDate <= startDate) {
           toast({
             title: "Invalid Date Range",
             description: "End date must be after start date",
+            variant: "destructive",
+          })
+          return
+        }
+        
+        // For cross-day bookings, maximum duration is 24 hours
+        const durationMs = validDate.getTime() - startDate.getTime()
+        const durationHours = durationMs / (1000 * 60 * 60)
+        const maxHours = 24
+        
+        if (durationHours > maxHours) {
+          toast({
+            title: "Invalid Duration",
+            description: `Booking cannot exceed ${maxHours} hours.`,
             variant: "destructive",
           })
           return
@@ -608,10 +622,17 @@ export function DateTimeRangePicker({
       }
     }
 
-    // If end date is different day, allow full day (no time restriction based on start time)
+    // If end date is different day, calculate max time based on 24-hour limit from start date
+    const maxDurationMs = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+    const maxEndTime = new Date(startDate.getTime() + maxDurationMs)
+    
+    // If calculated max time exceeds the end date, use end of end date
+    // Otherwise, use the calculated max time
+    const maxTime = maxEndTime > endDate ? endDate : maxEndTime
+    
     return {
       minTime: setHours(setMinutes(new Date(), 0), 0), // From 12:00 AM
-      maxTime: setHours(setMinutes(endDate, 59), 23) // Until 11:59 PM
+      maxTime: maxTime // Maximum time based on 24-hour limit
     }
   }
 

@@ -1313,8 +1313,7 @@ export default function ReschedulePage() {
                         // Ensure end date is on the same day as start date
                         if (!isSameDay(date, newStartDate)) {
                           // If user tries to select a different day, set to end of start day
-                          const endOfStartDay = endOfDay(newStartDate)
-                          setNewEndDate(endOfStartDay)
+                          setNewEndDate(date)
                         } else {
                           setNewEndDate(date)
                         }
