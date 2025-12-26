@@ -1169,8 +1169,8 @@ export function BookingManagement() {
               <DateTimeRangePicker
                 startDate={editFormData.startAt ? new Date(editFormData.startAt) : null}
                 endDate={editFormData.endAt ? new Date(editFormData.endAt) : null}
-                onStartDateChange={(date) => setEditFormData({ ...editFormData, startAt: date ? date.toISOString() : '', endAt: '' })}
-                onEndDateChange={(date) => setEditFormData({ ...editFormData, endAt: date ? date.toISOString() : '' })}
+                onStartDateChange={(date) => setEditFormData(prev => ({ ...prev, startAt: date ? date.toISOString() : '', endAt: '' }))}
+                onEndDateChange={(date) => setEditFormData(prev => ({ ...prev, endAt: date ? date.toISOString() : '' }))}
                 location={editFormData.location || 'Kovan'}
                 dateFormat="MMM d, yyyy h:mm aa"
                 placeholderStart="Select start time"
