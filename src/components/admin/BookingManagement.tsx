@@ -1718,7 +1718,8 @@ export function BookingManagement() {
                                     {activity.activityType === 'CREDIT_USED' && <DollarSign className="w-3 h-3 text-orange-500" />}
                                     {activity.activityType === 'PACKAGE_USED' && <DollarSign className="w-3 h-3 text-purple-500" />}
                                     {activity.activityType === 'REFUND_APPROVED' && <DollarSign className="w-3 h-3 text-yellow-500" />}
-                                    {!['BOOKING_CREATED', 'PAYMENT_CONFIRMED', 'RESCHEDULE_APPROVED', 'EXTEND_APPROVED', 'CREDIT_USED', 'PACKAGE_USED', 'REFUND_APPROVED'].includes(activity.activityType) && <FileText className="w-3 h-3 text-gray-500" />}
+                                    {activity.activityType === 'BOOKING_UPDATED' && <Edit className="w-3 h-3 text-indigo-500" />}
+                                    {!['BOOKING_CREATED', 'PAYMENT_CONFIRMED', 'RESCHEDULE_APPROVED', 'EXTEND_APPROVED', 'CREDIT_USED', 'PACKAGE_USED', 'REFUND_APPROVED', 'BOOKING_UPDATED'].includes(activity.activityType) && <FileText className="w-3 h-3 text-gray-500" />}
                                   </div>
                                   {index < activities.length - 1 && (
                                     <div className="w-0.5 h-full bg-gray-200 mt-1 min-h-[40px]"></div>
@@ -1730,7 +1731,7 @@ export function BookingManagement() {
                                       <p className="font-medium text-xs">{activity.activityTitle}</p>
                                       {activity.activityDescription && (
                                         <div className="text-xs text-gray-600 mt-0.5 space-y-1">
-                                          {activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED' ? (
+                                          {activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED' || activity.activityType === 'BOOKING_UPDATED' ? (
                                             <div className="space-y-1">
                                               {/* Use metadata first if available (most reliable) */}
                                               {activity.metadata && (activity.metadata.originalStartAt || activity.metadata.originalEndAt || activity.metadata.newStartAt || activity.metadata.newEndAt) ? (
