@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 
@@ -53,6 +53,7 @@ export function DateTimeRangePicker({
   const [operatingHours, setOperatingHours] = useState<OperatingHours[]>([])
   const [closureDates, setClosureDates] = useState<ClosureDate[]>([])
   const [isLoadingShopHours, setIsLoadingShopHours] = useState(false)
+  const isAutoSettingEndRef = useRef(false)
 
   // Load shop hours on mount
   useEffect(() => {
@@ -486,108 +487,69 @@ export function DateTimeRangePicker({
       onEndDateChange(null)
       return
     }
-
-    // Check if this is a date-only selection (time is 00:00:00)
+  
+    if (!startDate) {
+      toast({
+        title: "Select Start Date First",
+        variant: "destructive",
+      })
+      return
+    }
+  
+    const now = new Date()
     const isDateOnlySelection = date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0
-
-    // If it's just a date selection, set optimal time and skip validation
+    let validDate: Date
+  
     if (isDateOnlySelection) {
-      const optimalTime = getOptimalEndTime(date)
-      const validDate = enforceStrict15Minutes(optimalTime)
+      // If same day, force end = start + 1h
+      if (isSameDay(date, startDate)) {
+        validDate = new Date(startDate.getTime() + 60 * 60 * 1000)
+      } else {
+        validDate = getOptimalEndTime(date) // shop opening time
+      }
+      validDate = enforceStrict15Minutes(validDate)!
       onEndDateChange(validDate)
       return
     }
-
-    // Only validate when user has actually selected a time (not just date)
-    const validDate = enforceStrict15Minutes(date)
-    
-    if (validDate && startDate) {
-      const now = new Date()
-      const minEndTime = new Date(startDate.getTime() + 60 * 60 * 1000) // Start + 1 hour
-
-      // If selecting same day
-      if (isSameDay(validDate, startDate)) {
-        // Ensure end time is at least 1 hour after start time (same day)
-        // if (validDate <= startDate) {
-        //   toast({
-        //     title: "Invalid Time Range",
-        //     description: "End time must be after start time",
-        //     variant: "destructive",
-        //   })
-        //   return
-        // }
-
-        // Check minimum 1 hour gap
-        if (validDate < minEndTime) {
-          toast({
-            title: "Duration Too Short",
-            description: "End time must be at least 1 hour after start time",
-            variant: "destructive",
-          })
-          return
-        }
-
-        // If selecting today, check if time is in the past
-        if (isSameDay(validDate, now)) {
-          if (validDate < now) {
-            toast({
-              title: "Invalid Time",
-              description: "End time cannot be in the past. Please select a future time.",
-              variant: "destructive",
-            })
-            return
-          }
-        }
-      } else {
-        // If selecting different day, ensure it's after start date and max 24 hours
-        if (validDate <= startDate) {
-          toast({
-            title: "Invalid Date Range",
-            description: "End date must be after start date",
-            variant: "destructive",
-          })
-          return
-        }
-        
-        // For cross-day bookings, maximum duration is 24 hours
-        const durationMs = validDate.getTime() - startDate.getTime()
-        const durationHours = durationMs / (1000 * 60 * 60)
-        const maxHours = 24
-        
-        if (durationHours > maxHours) {
-          toast({
-            title: "Invalid Duration",
-            description: `Booking cannot exceed ${maxHours} hours.`,
-            variant: "destructive",
-          })
-          return
-        }
-      }
-
-      // Validate end time is within shop hours
-      if (!isTimeWithinShopHours(validDate)) {
-        toast({
-          title: "Invalid Time Slot",
-          description: "Unable to book this slot as the shop is close in this timeslot.",
-          variant: "destructive",
-        })
-        return
-      }
-
-      // Validate the entire time slot (start to end) doesn't overlap with closures
-      const validation = validateTimeSlot(startDate, validDate)
-      if (!validation.isValid) {
-        toast({
-          title: "Invalid Time Slot",
-          description: validation.errorMessage || "Unable to book this slot as the shop is close in this timeslot.",
-          variant: "destructive",
-        })
-        return
-      }
+  
+    // Normal time selection
+    validDate = enforceStrict15Minutes(date)!
+  
+    // If same day, ignore if user clicked the same time
+    if (isSameDay(validDate, startDate) && endDate && validDate.getTime() === endDate.getTime()) {
+      return
     }
-
+  
+    const minEndTime = new Date(startDate.getTime() + 60 * 60 * 1000)
+  
+    if (isSameDay(validDate, startDate) && validDate < minEndTime) {
+      // Force set to minEndTime instead of showing toast
+      validDate = minEndTime
+    }
+  
+    // Final validations
+    if (!isTimeWithinShopHours(validDate)) {
+      toast({
+        title: "Invalid Time Slot",
+        description: "Shop is closed in this timeslot",
+        variant: "destructive",
+      })
+      return
+    }
+  
+    const validation = validateTimeSlot(startDate, validDate)
+    if (!validation.isValid) {
+      toast({
+        title: "Invalid Time Slot",
+        description: validation.errorMessage,
+        variant: "destructive",
+      })
+      return
+    }
+  
     onEndDateChange(validDate)
   }
+  
 
   const getEndDateConstraints = () => {
     if (!startDate) return { minDate: new Date(), maxDate: maxBookingDate }
