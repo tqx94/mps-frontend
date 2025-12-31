@@ -277,43 +277,40 @@ export function DateTimeRangePicker({
     const now = new Date()
     const isToday = isSameDay(selectedDate, now)
     const dayOfWeek = selectedDate.getDay()
-    
-    // Get shop hours for the selected day
-    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
-    
-    // If no shop hours found
-    if (!dayHours || operatingHours.length === 0) {
-      if (isToday) {
-        // For today: round current time UP to next 15-minute interval
-        return roundUpToNext15Minutes(now)
-      }
-      // For future dates without shop hours: use 9 AM as default
-      const defaultTime = new Date(selectedDate)
-      defaultTime.setHours(9, 0, 0, 0)
-      return defaultTime
+  
+    const dayHours = operatingHours.find(
+      h => h.dayOfWeek === dayOfWeek && h.isActive
+    )
+  
+    // ❌ No shop hours → fallback (should ideally be blocked)
+    if (!dayHours) {
+      const fallback = new Date(selectedDate)
+      fallback.setHours(9, 0, 0, 0)
+      return fallback
     }
-    
-    // Parse shop open time
+  
+    // Shop opening time
     const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number)
     const openTime = new Date(selectedDate)
     openTime.setHours(openHours, openMinutes, 0, 0)
-    
+  
+    // ✅ CASE 1: TODAY → current time onward
     if (isToday) {
-      // For today: compare current time with shop open time
-      const currentRounded = roundUpToNext15Minutes(now)
-      
-      // If current time is before shop open time, use shop open time
-      if (currentRounded < openTime) {
+      const roundedNow = roundUpToNext15Minutes(now)
+  
+      // If current time is BEFORE shop opens → use opening time
+      if (roundedNow < openTime) {
         return openTime
       }
-      
-      // If current time is after or equal to shop open time, use current time
-      return currentRounded
-    } else {
-      // For future dates: use shop open time
-      return openTime
+  
+      // Otherwise → current time (rounded)
+      return roundedNow
     }
+  
+    // ✅ CASE 2: FUTURE DATE → opening hours
+    return openTime
   }
+  
 
   // Helper function to check if a time is within shop hours
   const isTimeWithinShopHours = (date: Date): boolean => {
