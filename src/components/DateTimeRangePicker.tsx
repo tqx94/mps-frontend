@@ -66,7 +66,7 @@ export function DateTimeRangePicker({
         ])
         setOperatingHours(hours)
         setClosureDates(closures)
-        console.log('✅ Shop hours loaded:', hours)
+ 
       } catch (error) {
         console.error('Error loading shop hours:', error)
       } finally {
@@ -164,21 +164,12 @@ export function DateTimeRangePicker({
     const now = new Date()
     const isToday = isSameDay(date, now)
 
-    // Log for debugging
-    console.log('🕐 Getting available times for:', {
-      date: date.toDateString(),
-      dayOfWeek,
-      isToday,
-      currentTime: now.toLocaleTimeString(),
-      operatingHoursLoaded: operatingHours.length,
-      isLoadingShopHours
-    })
+   
 
     const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
 
     // CRITICAL: Always show times even if hours aren't loaded yet (fallback)
     if (operatingHours.length === 0 || !dayHours) {
-      console.log('⚠️ Using fallback times - shop hours not loaded or day closed')
       const times: Date[] = []
       const start = new Date(date)
       start.setHours(0, 0, 0, 0)
@@ -226,7 +217,6 @@ export function DateTimeRangePicker({
       }
     }
 
-    console.log(`📋 Generated ${times.length} available times for ${date.toDateString()}`)
     return times
   }
 

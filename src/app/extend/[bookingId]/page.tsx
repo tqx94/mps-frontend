@@ -45,6 +45,7 @@ import { formatCurrency } from '@/lib/paymentUtils'
 import Navbar from '@/components/Navbar'
 import { FooterSection } from '@/components/landing-page-sections/FooterSection'
 import { authenticatedFetch } from '@/lib/apiClient'
+import { ExtendDateTimeRangePicker } from '@/components/ExtendDateTimeRangePicker'
 
 export default function ExtendBookingPage() {
   const params = useParams()
@@ -84,10 +85,6 @@ export default function ExtendBookingPage() {
   const urlOriginalEndAt = urlParams.get('originalEndAt')
   const urlPaymentMethod = urlParams.get('paymentMethod')
 
-  // Debug URL parameters
-  console.log('URL params:', { isPaymentConfirmation, paymentId, status })
-  console.log('Extension params:', { urlExtensionHours, urlExtensionCost, urlNewEndAt, urlSeatNumbers })
-  console.log('All search params:', Object.fromEntries(urlParams.entries()))
 
   // State
   const [booking, setBooking] = useState<any>(null)
@@ -1086,31 +1083,21 @@ export default function ExtendBookingPage() {
 
                       <div>
                      
-                        <DateTimeRangePicker
+                        <ExtendDateTimeRangePicker
                           startDate={originalEndDate}
                           endDate={newEndDate}
-                          onStartDateChange={() => {}} // No-op, start date is fixed
                           onEndDateChange={(date) => {
                             if (!date || !originalEndDate) {
                               setNewEndDate(null)
                               return
                             }
-                            
-                            // Ensure end date is on the same day as original end date
-                            if (!isSameDay(date, originalEndDate)) {
-                              // If user tries to select a different day, set to end of original end day
-                              const endOfOriginalDay = endOfDay(originalEndDate)
-                              setNewEndDate(endOfOriginalDay)
-                            } else {
-                              setNewEndDate(date)
-                            }
+                            setNewEndDate(date)
                           }}
                           location={booking?.location || 'Kovan'}
                           dateFormat="MMM d, h:mm aa"
                           placeholderEnd="Select new end time"
                           showLoader={true}
                           fullWidth={true}
-                          endOnly={true}
                           endOnlyLabel="New End Time"
                         />
                         {/* <p className="text-xs text-gray-500 mt-1">
