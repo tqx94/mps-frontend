@@ -422,15 +422,14 @@ export function DateTimeRangePicker({
         }
         
         // If there's an existing end date, validate the entire slot
+        // But don't block start time change - just clear end date if invalid
         if (endDate) {
           const validation = validateTimeSlot(finalDate, endDate)
           if (!validation.isValid) {
-            toast({
-              title: "Invalid Time Slot",
-              description: validation.errorMessage || "Unable to book as shop is not operating. please select another timeslot.",
-              variant: "destructive",
-            })
-            return
+            // Clear end date if it becomes invalid with new start time
+            // Allow user to select new end time
+            onEndDateChange(null)
+            // Don't return - allow start time to change
           }
         }
       }

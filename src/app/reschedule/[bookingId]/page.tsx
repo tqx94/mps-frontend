@@ -1384,6 +1384,13 @@ export default function ReschedulePage() {
                   {newStartDate && newEndDate && (
                     <Alert className={
                       (() => {
+                        // PRIORITY 1: Check if times are outside shop hours (highest priority - red)
+                        const isStartTimeInvalid = !isTimeWithinShopHours(newStartDate);
+                        const isEndTimeInvalid = !isTimeWithinShopHours(newEndDate);
+                        if (isStartTimeInvalid || isEndTimeInvalid) {
+                          return "border-red-500 bg-red-50";
+                        }
+                        
                         const durationIncrease = ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration;
                         // Red if duration decreased OR if increased but less than 1 hour (partial increase)
                         if (durationIncrease < 0 || (durationIncrease > 0 && durationIncrease < 1)) {
@@ -1399,42 +1406,63 @@ export default function ReschedulePage() {
                     }>
                       <Clock className="h-4 w-4" />
                       <AlertDescription>
-                        New Duration: {((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)).toFixed(2)} hours
-                        <span className="block mt-1 text-gray-600 text-sm">
-                          Original: {originalDuration.toFixed(2)} hours | Change: {(((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration).toFixed(2)} hours
-                        </span>
-                        {(() => {
-                          const durationIncrease = ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration;
-                          if (durationIncrease === 0) {
+                        <div>
+                          {(() => {
+                            // PRIORITY 1: Check if times are outside shop hours (show this first)
+                            const isStartTimeInvalid = !isTimeWithinShopHours(newStartDate);
+                            const isEndTimeInvalid = !isTimeWithinShopHours(newEndDate);
+                            
+                            if (isStartTimeInvalid || isEndTimeInvalid) {
+                              return (
+                                <span className="block mt-1 text-red-600 font-semibold">
+                                  ⚠ Unable to book this slot as the shop is closed in this timeslot.
+                                </span>
+                              );
+                            }
+                            
+                            // Other duration messages (only show if times are valid)
                             return (
-                              <span className="block mt-1 text-green-600">
-                                ✓ Same duration - No additional cost
-                              </span>
+                              <>
+                                New Duration: {((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)).toFixed(2)} hours
+                                <span className="block mt-1 text-gray-600 text-sm">
+                                  Original: {originalDuration.toFixed(2)} hours | Change: {(((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration).toFixed(2)} hours
+                                </span>
+                                {(() => {
+                                  const durationIncrease = ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration;
+                                  if (durationIncrease === 0) {
+                                    return (
+                                      <span className="block mt-1 text-green-600">
+                                        ✓ Same duration - No additional cost
+                                      </span>
+                                    );
+                                  }
+                                  if (durationIncrease > 0 && durationIncrease < 1) {
+                                    return (
+                                      <span className="block mt-1 text-red-600">
+                                        ⚠ Minimum increase is 1 hour. Keep same duration or increase by at least 1 hour.
+                                      </span>
+                                    );
+                                  }
+                                  if (costDifference > 0) {
+                                    return (
+                                      <span className="block mt-1 text-orange-600">
+                                        Additional cost: SGD ${costDifference.toFixed(2)}
+                                      </span>
+                                    );
+                                  }
+                                  if (costDifference < 0) {
+                                    return (
+                                      <span className="block mt-1 text-red-600">
+                                        New duration cannot be lesser than original duration. Please cancel and rebook
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </>
                             );
-                          }
-                          if (durationIncrease > 0 && durationIncrease < 1) {
-                            return (
-                              <span className="block mt-1 text-red-600">
-                                ⚠ Minimum increase is 1 hour. Keep same duration or increase by at least 1 hour.
-                              </span>
-                            );
-                          }
-                          if (costDifference > 0) {
-                            return (
-                              <span className="block mt-1 text-orange-600">
-                                Additional cost: SGD ${costDifference.toFixed(2)}
-                              </span>
-                            );
-                          }
-                          if (costDifference < 0) {
-                            return (
-                              <span className="block mt-1 text-red-600">
-                                New duration cannot be lesser than original duration. Please cancel and rebook
-                              </span>
-                            );
-                          }
-                          return null;
-                        })()}
+                          })()}
+                        </div>
                       </AlertDescription>
                     </Alert>
                   )}
