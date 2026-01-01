@@ -224,6 +224,7 @@ export default function ReschedulePage() {
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
   const [requiresSeatSelection, setRequiresSeatSelection] = useState(false)
   const [checkingSeats, setCheckingSeats] = useState(false)
+  const [hasTutorBooking, setHasTutorBooking] = useState(false)
 
   // Step 2: Payment
   const [rescheduleData, setRescheduleData] = useState<any>(null)
@@ -845,6 +846,7 @@ export default function ReschedulePage() {
           const data = await response.json()
           console.log('🔍 Seat availability response:', data)
           setAvailableSeats(data.availableSeats || [])
+          setHasTutorBooking(data.hasTutorBooking || false)
           
           // Filter out current booking's seats from occupied seats
           // Backend should exclude them, but double-check here
@@ -913,6 +915,20 @@ export default function ReschedulePage() {
     const timeoutId = setTimeout(checkSeatAvailability, 500)
     return () => clearTimeout(timeoutId)
   }, [newStartDate, newEndDate, booking, bookingId])
+
+  // Check tutor booking conflict when booking is a tutor booking
+  useEffect(() => {
+    const isTutorBooking = booking && (booking.tutors > 0 || booking.memberType === 'TUTOR')
+    if (isTutorBooking && hasTutorBooking && newStartDate && newEndDate) {
+      toast({
+        title: "Booking Not Available",
+        description: "This slot has been booked by another tutor. Only non-teaching slots can happen during this timing. Please select member/student. For other questions, please whatsapp admin.",
+        variant: "destructive",
+      })
+      // Clear selected seats
+      setSelectedSeats([])
+    }
+  }, [booking, hasTutorBooking, newStartDate, newEndDate, toast])
 
   const handleStep1Submit = () => {
     if (!newStartDate || !newEndDate) {
@@ -1142,6 +1158,17 @@ export default function ReschedulePage() {
 
   const handleRescheduleConfirm = async () => {
     if (!rescheduleData) return
+
+    // Check tutor booking conflict
+    const isTutorBooking = booking && (booking.tutors > 0 || booking.memberType === 'TUTOR')
+    if (isTutorBooking && hasTutorBooking) {
+      toast({
+        title: "Booking Not Available",
+        description: "This slot has been booked by another tutor. Only non-teaching slots can happen during this timing. Please select member/student. For other questions, please whatsapp admin.",
+        variant: "destructive",
+      })
+      return
+    }
 
     console.log('🔄 Starting reschedule process for booking:', bookingId)
     console.log('Reschedule data:', rescheduleData)
@@ -1537,6 +1564,7 @@ export default function ReschedulePage() {
                             maxSeats={booking.pax}
                             onSelectionChange={handleSeatSelectionChange}
                             initialSelectedSeats={selectedSeats}
+                            disabled={booking && (booking.tutors > 0 || booking.memberType === 'TUTOR') && hasTutorBooking}
                           />
                         </div>
                       </div>

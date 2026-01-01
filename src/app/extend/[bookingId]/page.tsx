@@ -94,6 +94,7 @@ export default function ExtendBookingPage() {
   const [occupiedSeats, setOccupiedSeats] = useState<string[]>([])
   const [checkingSeats, setCheckingSeats] = useState(false)
   const [requiresSeatSelection, setRequiresSeatSelection] = useState(false)
+  const [hasTutorBooking, setHasTutorBooking] = useState(false)
 
   // Dynamic payment fee settings state
   const [paymentFeeSettings, setPaymentFeeSettings] = useState({
@@ -805,6 +806,7 @@ export default function ExtendBookingPage() {
           const data = await response.json()
           setAvailableSeats(data.availableSeats || [])
           setOccupiedSeats(data.bookedSeats || [])
+          setHasTutorBooking(data.hasTutorBooking || false)
 
           // Check if original seats are still available
           const originalSeats = booking.seatNumbers || []
@@ -832,6 +834,20 @@ export default function ExtendBookingPage() {
     return () => clearTimeout(timeoutId)
   }, [newEndDate, booking, originalEndDate])
 
+  // Check tutor booking conflict when booking is a tutor booking
+  useEffect(() => {
+    const isTutorBooking = booking && (booking.tutors > 0 || booking.memberType === 'TUTOR')
+    if (isTutorBooking && hasTutorBooking && newEndDate && originalEndDate) {
+      toast({
+        title: "Booking Not Available",
+        description: "This slot has been booked by another tutor. Only non-teaching slots can happen during this timing. Please select member/student. For other questions, please whatsapp admin.",
+        variant: "destructive",
+      })
+      // Clear selected seats
+      setSelectedSeats([])
+    }
+  }, [booking, hasTutorBooking, newEndDate, originalEndDate, toast])
+
   const handleSubmit = async () => {
     if (!newEndDate || !booking) {
       toast({
@@ -847,6 +863,17 @@ export default function ExtendBookingPage() {
         title: "Invalid Extension",
         description: "New end time must be after current end time",
         variant: "destructive"
+      })
+      return
+    }
+
+    // Check tutor booking conflict
+    const isTutorBooking = booking && (booking.tutors > 0 || booking.memberType === 'TUTOR')
+    if (isTutorBooking && hasTutorBooking) {
+      toast({
+        title: "Booking Not Available",
+        description: "This slot has been booked by another tutor. Only non-teaching slots can happen during this timing. Please select member/student. For other questions, please whatsapp admin.",
+        variant: "destructive",
       })
       return
     }
@@ -1273,6 +1300,7 @@ export default function ExtendBookingPage() {
                           overlays={OVERLAYS}
                           maxSeats={booking.pax}
                           onSelectionChange={setSelectedSeats}
+                          disabled={booking && (booking.tutors > 0 || booking.memberType === 'TUTOR') && hasTutorBooking}
                         />
 
                         <div className="flex justify-between items-center mt-2">
