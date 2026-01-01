@@ -483,8 +483,8 @@ export default function Dashboard() {
             <div className="w-full overflow-x-auto scrollbar-hide -mx-4 px-4 md:overflow-x-visible md:mx-0 md:px-0">
               <TabsList className="grid w-full grid-cols-6 min-w-[600px] md:min-w-0">
                 <TabsTrigger value="overview" className="text-xs sm:text-sm md:text-base whitespace-nowrap">Overview</TabsTrigger>
-                <TabsTrigger value="mybookings" className="text-xs sm:text-sm md:text-base whitespace-nowrap">My Bookings</TabsTrigger>
                 <TabsTrigger value="profile" className="text-xs sm:text-sm md:text-base whitespace-nowrap">Profile</TabsTrigger>
+                <TabsTrigger value="mybookings" className="text-xs sm:text-sm md:text-base whitespace-nowrap">My Bookings</TabsTrigger>
                 <TabsTrigger value="passes" className="text-xs sm:text-sm md:text-base whitespace-nowrap">Packages</TabsTrigger>
                 <TabsTrigger value="promocodes" className="text-xs sm:text-sm md:text-base whitespace-nowrap">Promo Codes</TabsTrigger>
                 <TabsTrigger value="credits" className="text-xs sm:text-sm md:text-base whitespace-nowrap">Credits</TabsTrigger>

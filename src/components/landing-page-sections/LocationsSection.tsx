@@ -13,7 +13,7 @@ const locations = [
   {
         src: '/mock_img/zoneA.png',
         title: 'Kovan Zone A',
-        desc: '15 seats max, spacing ~2m…',
+        desc: '15 seats in Total',
         items: [
         'T1–T2: Window-side solo seats',
         'T4, T5: Group tables',
@@ -31,7 +31,7 @@ export default function LocationsSection() {
       <div className="container mx-auto">
       <h2 className="text-4xl font-serif text-center">Locations</h2>
       {/* <p className="mt-2 text-gray-600 text-center text-2xl font-semibold">Your Seat, Your Space</p> */}
-      <p className="mt-2 px-6 text-gray-600 text-center">Your Seat, Your Space (A visual guide to our seating layouts)</p>
+      <p className="mt-2 px-6 text-gray-600 text-center">Seat Layout</p>
     
         <Carousel
           settings={{
@@ -44,9 +44,7 @@ export default function LocationsSection() {
         >
           {locations.map((loc, i) => {
             // dynamic google-maps search URL
-            const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-              loc.title
-            )}`
+            const mapLink = `https://maps.app.goo.gl/5Vjx5BBzuFLpWbCG8`
             return (
             <div
               key={i}

@@ -8,14 +8,14 @@ import { Button } from '@/components/ui/button'
 const steps = [
   {
     src: '/mock_img/step1.jpg',
-    title: 'Step 1: Choose Your Zone',
-    desc: 'Select the location or seating zone...',
-    est: '~2min',
+    title: 'Select number of people and preferred date/time',
+    desc: 'Select number of people and preferred date/time',
+    est: '~1min',
   },
   {
     src: '/mock_img/step2.png',
-    title: 'Step 2: Select Time Slot',
-    desc: 'Pick your preferred date and time...',
+    title: 'Step 2: Choose your seat ',
+    desc: 'Pick your preferred seat',
     est: '~1min',
   },
   {

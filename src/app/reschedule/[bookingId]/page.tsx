@@ -1340,6 +1340,8 @@ export default function ReschedulePage() {
                           const calculatedEndDate = new Date(date.getTime() + (originalDuration * 60 * 60 * 1000))
                           
                           // Validate that calculated end time is within shop hours
+                          // Note: For overnight bookings, this will check end time against end date's shop hours
+                          // The DateTimeRangePicker's validateTimeSlot will handle the full validation
                           if (!isTimeWithinShopHours(calculatedEndDate)) {
                             toast({
                               title: "Invalid Time Slot",
@@ -1351,23 +1353,10 @@ export default function ReschedulePage() {
                             return
                           }
                           
-                          // Ensure end date is on the same day as start date
-                          if (!isSameDay(calculatedEndDate, date)) {
-                            const endOfStartDay = endOfDay(date)
-                            // Validate that end of day is within shop hours
-                            if (!isTimeWithinShopHours(endOfStartDay)) {
-                              toast({
-                                title: "Invalid Time Slot",
-                                description: "Unable to reschedule as the shop is closed in this timeslot. Please select an earlier start time.",
-                                variant: "destructive",
-                              })
-                              setNewEndDate(null)
-                              return
-                            }
-                            setNewEndDate(endOfStartDay)
-                          } else {
-                            setNewEndDate(calculatedEndDate)
-                          }
+                          // Allow overnight bookings - set the calculated end date regardless of day
+                          // The DateTimeRangePicker's validateTimeSlot will ensure both start and end times
+                          // are within their respective days' shop hours and no closures overlap
+                          setNewEndDate(calculatedEndDate)
                         }
                       }}
                       onEndDateChange={(date) => {

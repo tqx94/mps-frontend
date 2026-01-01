@@ -1139,13 +1139,11 @@ export default function BookingClient() {
       }
     }
 
-    // Check if end date is same day as start date (no next day bookings allowed)
-    if (!isSameDay(startDate, endDate)) {
-      return {
-        isValid: false,
-        message: 'End date must be on the same day as start date. Next day bookings are not allowed.'
-      }
-    }
+    // Overnight bookings are allowed as long as:
+    // - Start time is within shop hours of start date
+    // - End time is within shop hours of end date
+    // - No closures overlap with the booking period
+    // These checks are handled by validateTimeSlot in DateTimeRangePicker
 
     return { isValid: true, message: '' }
   }
