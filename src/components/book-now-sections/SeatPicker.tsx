@@ -49,6 +49,7 @@ export interface SeatPickerProps {
   maxSeats?: number  // maximum num of seats that can be selected
   onSelectionChange?: (selectedIds: string[]) => void
   initialSelectedSeats?: string[]  // pre-selected seats for reschedule/extend
+  disabled?: boolean  // disable all seat selection
 }
 
 export const SeatPicker: React.FC<SeatPickerProps> = ({
@@ -61,11 +62,12 @@ export const SeatPicker: React.FC<SeatPickerProps> = ({
   maxSeats = Infinity,  // Default to unlimited if not specified
   onSelectionChange,
   initialSelectedSeats = [],  // pre-selected seats for reschedule/extend
+  disabled = false,  // disable all seat selection
 }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelectedSeats))
 
   const toggleSeat = (id: string) => {
-    if (bookedSeats.includes(id)) return
+    if (disabled || bookedSeats.includes(id)) return
     setSelected((prev) => {
       const next = new Set(prev)
 
@@ -147,15 +149,17 @@ export const SeatPicker: React.FC<SeatPickerProps> = ({
         {layout.map((seat) => {
           const isBooked = bookedSeats.includes(seat.id)
           const isSelected = selected.has(seat.id)
-          const isDisabled = isBooked || (isMaxReached && !isSelected)
+          const isDisabled = disabled || isBooked || (isMaxReached && !isSelected)
 
-          const fill = isBooked
-            ? '#FF0000'  // Pure red color for booked seats
-            : isSelected
-              ? '#f97316'
-              : isDisabled
-                ? '#e5e7eb'  // Light gray for disabled unselected seats
-                : '#10b981'
+          const fill = disabled
+            ? '#9CA3AF'  // Gray for disabled seats (tutor conflict)
+            : isBooked
+              ? '#FF0000'  // Pure red color for booked seats
+              : isSelected
+                ? '#f97316'
+                : isDisabled
+                  ? '#e5e7eb'  // Light gray for disabled unselected seats
+                  : '#10b981'
 
           const opacity = isDisabled && !isSelected ? 0.5 : 1
 

@@ -169,6 +169,17 @@ export interface BookingResponse {
 
 export interface SeatAvailabilityResponse {
   bookedSeats: string[]
+  availableSeats?: string[]
+  hasTutorBooking?: boolean
+  overlappingBookings?: Array<{
+    bookingRef: string
+    startAt: string
+    endAt: string
+    seats: string[]
+    confirmedPayment: boolean
+    tutors?: number
+    memberType?: string
+  }>
 }
 
 export interface UserStatsResponse {

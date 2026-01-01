@@ -131,6 +131,7 @@ export default function BookingClient() {
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
   const [bookedSeats, setBookedSeats] = useState<string[]>([])
   const [isLoadingSeats, setIsLoadingSeats] = useState(false)
+  const [hasTutorBooking, setHasTutorBooking] = useState(false)
 
   // Shop hours state
   const [operatingHours, setOperatingHours] = useState<OperatingHours[]>([])
@@ -1174,6 +1175,7 @@ export default function BookingClient() {
       if (response.ok) {
         const data = await response.json()
         setBookedSeats(data.bookedSeats || [])
+        setHasTutorBooking(data.hasTutorBooking || false)
 
         if (data.summary?.pending > 0) {
           console.log('⏳ Pending payment bookings detected - seats temporarily blocked')
@@ -1192,14 +1194,29 @@ export default function BookingClient() {
       } else {
         console.error('Failed to fetch booked seats')
         setBookedSeats([])
+        setHasTutorBooking(false)
       }
     } catch (error) {
       console.error('Error fetching booked seats:', error)
       setBookedSeats([])
+      setHasTutorBooking(false)
     } finally {
       setIsLoadingSeats(false)
     }
   }, [location, startDate, endDate])
+
+  // Check tutor booking conflict when tutor tier is selected
+  useEffect(() => {
+    if (peopleBreakdown.coTutors > 0 && hasTutorBooking && startDate && endDate) {
+      toast({
+        title: "Booking Not Available",
+        description: "This slot has been booked by another tutor. Only non-teaching slots can happen during this timing. Please select member/student. For other questions, please whatsapp admin.",
+        variant: "destructive",
+      })
+      // Clear selected seats
+      setSelectedSeats([])
+    }
+  }, [peopleBreakdown.coTutors, hasTutorBooking, startDate, endDate])
 
   // Fetch booked seats when location, start date, or end date changes
   useEffect(() => {
@@ -1372,6 +1389,16 @@ export default function BookingClient() {
     // Double-check user is logged in
     if (!user) {
       router.push('/login')
+      return
+    }
+
+    // Check if tutor tier is selected and there's already a tutor booking
+    if (peopleBreakdown.coTutors > 0 && hasTutorBooking) {
+      toast({
+        title: "Booking Not Available",
+        description: "This slot has been booked by another tutor. Only non-teaching slots can happen during this timing. Please select member/student. For other questions, please whatsapp admin.",
+        variant: "destructive",
+      })
       return
     }
 
@@ -1970,6 +1997,7 @@ export default function BookingClient() {
                                 overlays={OVERLAYS}
                                 maxSeats={people}
                                 onSelectionChange={setSelectedSeats}
+                                disabled={peopleBreakdown.coTutors > 0 && hasTutorBooking}
                               />
                               <div className="flex justify-between items-center mt-2">
                                 <p className="text-sm text-gray-600">
