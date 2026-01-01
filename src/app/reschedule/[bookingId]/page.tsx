@@ -403,6 +403,22 @@ export default function ReschedulePage() {
     return times;
   };
 
+  // Helper function to check if a time is within shop hours
+  const isTimeWithinShopHours = (date: Date): boolean => {
+    const dayOfWeek = date.getDay()
+    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+    
+    if (!dayHours || operatingHours.length === 0) {
+      return false // No shop hours for this day
+    }
+    
+    const timeString = date.toTimeString().split(' ')[0].substring(0, 5)
+    const openTime = dayHours.openTime.substring(0, 5)
+    const closeTime = dayHours.closeTime.substring(0, 5)
+    
+    return timeString >= openTime && timeString <= closeTime
+  }
+
   // Helper function to get available end times based on start date
   const getAvailableEndTimes = (startDate: Date | null): Date[] => {
     if (!startDate) return [];
@@ -1295,9 +1311,32 @@ export default function ReschedulePage() {
                         // Auto-update end date if original duration exists
                         if (date && originalDuration > 0) {
                           const calculatedEndDate = new Date(date.getTime() + (originalDuration * 60 * 60 * 1000))
+                          
+                          // Validate that calculated end time is within shop hours
+                          if (!isTimeWithinShopHours(calculatedEndDate)) {
+                            toast({
+                              title: "Invalid Time Slot",
+                              description: "Unable to reschedule as the shop is closed in this timeslot. Please select an earlier start time.",
+                              variant: "destructive",
+                            })
+                            // Don't auto-set end date, let user manually select a valid end time
+                            setNewEndDate(null)
+                            return
+                          }
+                          
                           // Ensure end date is on the same day as start date
                           if (!isSameDay(calculatedEndDate, date)) {
                             const endOfStartDay = endOfDay(date)
+                            // Validate that end of day is within shop hours
+                            if (!isTimeWithinShopHours(endOfStartDay)) {
+                              toast({
+                                title: "Invalid Time Slot",
+                                description: "Unable to reschedule as the shop is closed in this timeslot. Please select an earlier start time.",
+                                variant: "destructive",
+                              })
+                              setNewEndDate(null)
+                              return
+                            }
                             setNewEndDate(endOfStartDay)
                           } else {
                             setNewEndDate(calculatedEndDate)
@@ -1306,6 +1345,17 @@ export default function ReschedulePage() {
                       }}
                       onEndDateChange={(date) => {
                         if (!date || !newStartDate) {
+                          setNewEndDate(null)
+                          return
+                        }
+                        
+                        // Validate that end time is within shop hours
+                        if (!isTimeWithinShopHours(date)) {
+                          toast({
+                            title: "Invalid Time Slot",
+                            description: "Unable to reschedule as the shop is closed in this timeslot. Please select an earlier end time.",
+                            variant: "destructive",
+                          })
                           setNewEndDate(null)
                           return
                         }
@@ -1547,6 +1597,10 @@ export default function ReschedulePage() {
                         checkingSeats ||
                         !newStartDate ||
                         !newEndDate ||
+                        // Validate that start time is within shop hours
+                        (newStartDate && !isTimeWithinShopHours(newStartDate)) ||
+                        // Validate that end time is within shop hours
+                        (newEndDate && !isTimeWithinShopHours(newEndDate)) ||
                         (requiresSeatSelection && selectedSeats.length !== booking.pax) ||
                         costDifference < 0 ||
                         // Disable if times haven't changed from original
