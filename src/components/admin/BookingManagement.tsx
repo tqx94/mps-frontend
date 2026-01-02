@@ -71,8 +71,13 @@ export function BookingManagement() {
     endAt: '',
     location: '',
     specialRequests: '',
-    totalAmount: 0
+    totalAmount: 0,
+    seatNumbers: [] as string[]
   })
+  
+  // Seat selection state for edit dialog
+  const [bookedSeatsForEdit, setBookedSeatsForEdit] = useState<string[]>([])
+  const [loadingSeats, setLoadingSeats] = useState(false)
 
   // Shop hours state
   const [operatingHours, setOperatingHours] = useState<OperatingHours[]>([])
@@ -456,6 +461,39 @@ export function BookingManagement() {
     }))
   }
 
+  // Fetch booked seats for edit dialog
+  const fetchBookedSeatsForEdit = async (location: string, startAt: string, endAt: string, excludeBookingId?: string) => {
+    if (!location || !startAt || !endAt) {
+      setBookedSeatsForEdit([])
+      return
+    }
+
+    setLoadingSeats(true)
+    try {
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/booking/getBookedSeats`, {
+        method: 'POST',
+        body: JSON.stringify({
+          location,
+          startAt: startAt.replace('T', ' ').replace('Z', ''),
+          endAt: endAt.replace('T', ' ').replace('Z', ''),
+          excludeBookingId
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setBookedSeatsForEdit(data.bookedSeats || [])
+      } else {
+        setBookedSeatsForEdit([])
+      }
+    } catch (error) {
+      console.error('Error fetching booked seats:', error)
+      setBookedSeatsForEdit([])
+    } finally {
+      setLoadingSeats(false)
+    }
+  }
+
   // Handle edit booking
   const handleEdit = (booking: Booking) => {
     setEditingBooking(booking)
@@ -473,11 +511,14 @@ export function BookingManagement() {
       endAt: endDate.toISOString(),
       location: booking.location,
       specialRequests: booking.specialRequests || '',
-      totalAmount: booking.totalAmount
+      totalAmount: booking.totalAmount,
+      seatNumbers: booking.seatNumbers || []
     })
     setIsEditDialogOpen(true)
     // Load shop hours for the booking's location
     loadShopHours(booking.location)
+    // Fetch booked seats for the current time slot
+    fetchBookedSeatsForEdit(booking.location, startDate.toISOString(), endDate.toISOString(), booking.id)
   }
 
   // Reload shop hours when location changes in edit form
@@ -486,6 +527,19 @@ export function BookingManagement() {
       loadShopHours(editFormData.location)
     }
   }, [editFormData.location, isEditDialogOpen])
+
+  // Fetch booked seats when time or location changes in edit form
+  useEffect(() => {
+    if (isEditDialogOpen && editFormData.location && editFormData.startAt && editFormData.endAt && editingBooking) {
+      fetchBookedSeatsForEdit(
+        editFormData.location,
+        editFormData.startAt,
+        editFormData.endAt,
+        editingBooking.id
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editFormData.location, editFormData.startAt, editFormData.endAt, isEditDialogOpen, editingBooking?.id])
 
   // Handle cancel booking click
   const handleCancelClick = (booking: Booking) => {
@@ -548,7 +602,8 @@ export function BookingManagement() {
         endAt: new Date(editFormData.endAt).toISOString(),
         location: editFormData.location,
         specialRequests: editFormData.specialRequests,
-        totalAmount: editFormData.totalAmount
+        totalAmount: editFormData.totalAmount,
+        seatNumbers: editFormData.seatNumbers
       }
 
       const response = await updateAdminBooking(editingBooking.id, payload)
@@ -1222,6 +1277,66 @@ export function BookingManagement() {
                 onChange={(e) => setEditFormData({ ...editFormData, specialRequests: e.target.value })}
               />
             </div>
+            
+            {/* Seat Selection */}
+            <div className="grid gap-2">
+              <Label>Select Seats</Label>
+              {loadingSeats ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
+                  <span className="ml-2 text-sm text-gray-500">Loading seat availability...</span>
+                </div>
+              ) : editFormData.startAt && editFormData.endAt ? (
+                <div className="p-4 border rounded-lg bg-gray-50">
+                  <div className="grid grid-cols-5 gap-2">
+                    {['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15'].map(seat => {
+                      const isBooked = bookedSeatsForEdit.includes(seat)
+                      const isSelected = editFormData.seatNumbers.includes(seat)
+                      const isDisabled = isBooked && !isSelected
+                      
+                      return (
+                        <button
+                          key={seat}
+                          type="button"
+                          onClick={() => {
+                            if (isDisabled) return
+                            setEditFormData(prev => ({
+                              ...prev,
+                              seatNumbers: isSelected
+                                ? prev.seatNumbers.filter(s => s !== seat)
+                                : [...prev.seatNumbers, seat]
+                            }))
+                          }}
+                          disabled={isDisabled}
+                          className={`p-3 border rounded-lg text-center font-mono text-sm transition-colors ${
+                            isSelected
+                              ? 'bg-orange-500 text-white border-orange-500'
+                              : isBooked
+                              ? 'bg-red-100 text-red-600 border-red-300 cursor-not-allowed opacity-60'
+                              : 'bg-white hover:bg-orange-50 border-gray-300'
+                          }`}
+                          title={isBooked ? 'This seat is already booked' : isSelected ? 'Click to deselect' : 'Click to select'}
+                        >
+                          {seat}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="mt-3 text-sm text-gray-600">
+                    <div>Selected: {editFormData.seatNumbers.length > 0 ? editFormData.seatNumbers.join(', ') : 'None'}</div>
+                    {bookedSeatsForEdit.length > 0 && (
+                      <div className="text-red-600 mt-1">
+                        Booked seats (red): {bookedSeatsForEdit.filter(s => !editFormData.seatNumbers.includes(s)).join(', ') || 'None'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 border rounded-lg bg-gray-50 text-sm text-gray-500 text-center">
+                  Please select start and end time to see available seats
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
@@ -1840,6 +1955,34 @@ export function BookingManagement() {
                                                 <p className="text-gray-600">{activity.activityDescription}</p>
                                               )}
 
+                                              {/* Seat Information for Booking Updated */}
+                                              {activity.activityType === 'BOOKING_UPDATED' && activity.metadata && (activity.metadata.originalSeatNumbers || activity.metadata.newSeatNumbers) ? (
+                                                <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
+                                                  {/* Old Seats */}
+                                                  {activity.metadata.originalSeatNumbers && activity.metadata.originalSeatNumbers.length > 0 && (
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-gray-500">Old seats:</span>
+                                                      <span className="text-xs font-medium">{activity.metadata.originalSeatNumbers.join(', ')}</span>
+                                                    </div>
+                                                  )}
+                                                  {/* New Seats */}
+                                                  {activity.metadata.newSeatNumbers && activity.metadata.newSeatNumbers.length > 0 && (
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-blue-600 font-medium">New seats:</span>
+                                                      <span className="text-xs font-medium">{activity.metadata.newSeatNumbers.join(', ')}</span>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ) : activity.activityType === 'BOOKING_UPDATED' && detailData?.booking && detailData.booking.seatNumbers && detailData.booking.seatNumbers.length > 0 && (
+                                                // Fallback: show current seats if metadata not available
+                                                <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-blue-600 font-medium">Seats:</span>
+                                                    <span className="text-xs font-medium">{detailData.booking.seatNumbers.join(', ')}</span>
+                                                  </div>
+                                                </div>
+                                              )}
+
                                               {/* Payment Information for Reschedule/Extend */}
                                               {(paymentAmount || paymentMethod) && (
                                                 <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
@@ -1895,6 +2038,30 @@ export function BookingManagement() {
                                           ) : activity.activityType === 'BOOKING_CREATED' ? (
                                             <div className="space-y-1">
                                               <p>{activity.activityDescription}</p>
+                                              
+                                              {/* Original Seat and Booking Information */}
+                                              {detailData?.booking && (
+                                                <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
+                                                  {/* Original Seats */}
+                                                  {detailData.booking.seatNumbers && detailData.booking.seatNumbers.length > 0 && (
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-gray-500">Original seats:</span>
+                                                      <span className="text-xs font-medium">{detailData.booking.seatNumbers.join(', ')}</span>
+                                                    </div>
+                                                  )}
+                                                  {/* Original Booking Time */}
+                                                  {detailData.booking.startAt && detailData.booking.endAt && (
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-gray-500">Original booking:</span>
+                                                      <span className="font-mono text-xs">
+                                                        {formatSingaporeDate(detailData.booking.startAt)} - {formatSingaporeDate(detailData.booking.endAt)}
+                                                      </span>
+                                                    </div>
+                                                  )}
+                                                  {/* Location */}
+                                                  
+                                                </div>
+                                              )}
                                               
                                               {/* Payment Information for Booking Creation */}
                                               {(paymentAmount || paymentMethod) && (
