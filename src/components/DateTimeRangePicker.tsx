@@ -336,31 +336,69 @@ export function DateTimeRangePicker({
   const addGrace = (time: Date) =>
     new Date(time.getTime() + GRACE_MS)
   
+  // Helper to check if time is within shop hours with 5-minute grace for overnight bookings
+  const isTimeWithinShopHoursWithGrace = (date: Date, isOvernight: boolean): boolean => {
+    const dayOfWeek = date.getDay()
+    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+    
+    if (!dayHours || operatingHours.length === 0) {
+      return false
+    }
+    
+    const timeString = date.toTimeString().split(' ')[0].substring(0, 5)
+    const openTime = dayHours.openTime.substring(0, 5)
+    const closeTime = dayHours.closeTime.substring(0, 5)
+    
+    // Check if within shop hours
+    if (timeString >= openTime && timeString <= closeTime) {
+      return true
+    }
+    
+    // For overnight bookings only: allow 5-minute grace period
+    if (isOvernight) {
+      const [closeHours, closeMinutes] = closeTime.split(':').map(Number)
+      const closeTimeDate = new Date(date)
+      closeTimeDate.setHours(closeHours, closeMinutes, 0, 0)
+      const graceAfterClose = new Date(closeTimeDate.getTime() + GRACE_MS)
+      
+      const [openHours, openMinutes] = openTime.split(':').map(Number)
+      const openTimeDate = new Date(date)
+      openTimeDate.setHours(openHours, openMinutes, 0, 0)
+      const graceBeforeOpen = new Date(openTimeDate.getTime() - GRACE_MS)
+      
+      // Allow if within 5 minutes after closing OR within 5 minutes before opening
+      return (date.getTime() > closeTimeDate.getTime() && date.getTime() <= graceAfterClose.getTime()) ||
+             (date.getTime() < openTimeDate.getTime() && date.getTime() >= graceBeforeOpen.getTime())
+    }
+    
+    return false
+  }
+
   const validateTimeSlot = (
     startTime: Date,
     endTime: Date
   ): { isValid: boolean; errorMessage?: string } => {
   
-    const now = new Date()
+    const isOvernight = !isSameDay(startTime, endTime)
   
-    // 🔹 Relaxed start time check
-    if (!isTimeWithinShopHours(addGrace(startTime)) && now > addGrace(startTime)) {
+    // Check if start time is within shop hours (with grace for overnight)
+    if (!isTimeWithinShopHoursWithGrace(startTime, isOvernight)) {
       return {
         isValid: false,
         errorMessage: 'Unable to book this slot as the shop is close in this timeslot.'
       }
     }
   
-    // 🔹 Relaxed end time check
-    if (!isTimeWithinShopHours(addGrace(endTime)) && now > addGrace(endTime)) {
+    // Check if end time is within shop hours (with grace for overnight)
+    if (!isTimeWithinShopHoursWithGrace(endTime, isOvernight)) {
       return {
         isValid: false,
         errorMessage: 'Unable to book this slot as the shop is close in this timeslot.'
       }
     }
   
-    // 🔹 Closure check with grace
-    if (isTimeSlotInClosure(startTime, addGrace(endTime)) && now > addGrace(endTime)) {
+    // Check if the entire time slot overlaps with any closure period
+    if (isTimeSlotInClosure(startTime, endTime)) {
       return {
         isValid: false,
         errorMessage: 'Unable to book this slot as the shop is close in this timeslot.'
@@ -403,36 +441,13 @@ export function DateTimeRangePicker({
       const optimalTime = getOptimalStartTime(date)
       finalDate = optimalTime
     } else {
-      // User manually selected time - check if it's a valid time selection
-      // Only validate if user has actually selected a time (not just clicking on date)
+      // User manually selected time - no validation, just set it
       finalDate = date
       
-      // Check if this looks like a time selection (not just date selection)
-      // If time is not 00:00:00, assume user selected a time
-      const hasTimeSelected = date.getHours() !== 0 || date.getMinutes() !== 0
-      
-      if (hasTimeSelected) {
-        // Validate start time is within shop hours
-        if (!isTimeWithinShopHours(finalDate)) {
-          toast({
-            title: "Invalid Time Slot",
-            description: "Unable to book as shop is not operating. please select another timeslot",
-            variant: "destructive",
-          })
-          return
-        }
-        
-        // If there's an existing end date, validate the entire slot
-        // But don't block start time change - just clear end date if invalid
-        if (endDate) {
-          const validation = validateTimeSlot(finalDate, endDate)
-          if (!validation.isValid) {
-            // Clear end date if it becomes invalid with new start time
-            // Allow user to select new end time
-            onEndDateChange(null)
-            // Don't return - allow start time to change
-          }
-        }
+      // If there's an existing end date, clear it to force reselection
+      // Validation will happen when end time is selected
+      if (endDate) {
+        onEndDateChange(null)
       }
     }
     
