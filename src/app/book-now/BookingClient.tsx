@@ -531,39 +531,83 @@ export default function BookingClient() {
       return 0
     }
 
-    // Bookings are same-day only, so we can check the day's operating hours
-    if (!isSameDay(startTime, endTime)) {
-      // This shouldn't happen for valid bookings, but return 0 if dates differ
-      return 0
+    let totalMs = 0
+
+    // Check if this is an overnight booking (spans across midnight)
+    if (isSameDay(startTime, endTime)) {
+      // Same-day booking
+      const dayOfWeek = startTime.getDay()
+      const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+
+      if (!dayHours) {
+        return 0
+      }
+
+      // Get operating hours for the day
+      const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number)
+      const [closeHours, closeMinutes] = dayHours.closeTime.split(':').map(Number)
+
+      const openTime = new Date(startTime)
+      openTime.setHours(openHours, openMinutes, 0, 0)
+
+      const closeTime = new Date(startTime)
+      closeTime.setHours(closeHours, closeMinutes, 0, 0)
+
+      // Clamp start and end times to operating hours
+      const actualStart = startTime.getTime() > openTime.getTime() ? startTime.getTime() : openTime.getTime()
+      const actualEnd = endTime.getTime() < closeTime.getTime() ? endTime.getTime() : closeTime.getTime()
+
+      if (actualStart >= actualEnd) {
+        return 0
+      }
+
+      totalMs = actualEnd - actualStart
+    } else {
+      // Overnight booking - calculate hours across two days
+      const startDayOfWeek = startTime.getDay()
+      const endDayOfWeek = endTime.getDay()
+      
+      const startDayHours = operatingHours.find(h => h.dayOfWeek === startDayOfWeek && h.isActive)
+      const endDayHours = operatingHours.find(h => h.dayOfWeek === endDayOfWeek && h.isActive)
+
+      if (!startDayHours || !endDayHours) {
+        return 0
+      }
+
+      // Calculate hours for start day: from start time to end of start day (closing time)
+      const [startOpenHours, startOpenMinutes] = startDayHours.openTime.split(':').map(Number)
+      const [startCloseHours, startCloseMinutes] = startDayHours.closeTime.split(':').map(Number)
+
+      const startDayOpenTime = new Date(startTime)
+      startDayOpenTime.setHours(startOpenHours, startOpenMinutes, 0, 0)
+
+      const startDayCloseTime = new Date(startTime)
+      startDayCloseTime.setHours(startCloseHours, startCloseMinutes, 0, 0)
+
+      const startDayActualStart = startTime.getTime() > startDayOpenTime.getTime() ? startTime.getTime() : startDayOpenTime.getTime()
+      const startDayActualEnd = startDayCloseTime.getTime() // Use closing time of start day
+
+      if (startDayActualStart < startDayActualEnd) {
+        totalMs += startDayActualEnd - startDayActualStart
+      }
+
+      // Calculate hours for end day: from start of end day (opening time) to end time
+      const [endOpenHours, endOpenMinutes] = endDayHours.openTime.split(':').map(Number)
+      const [endCloseHours, endCloseMinutes] = endDayHours.closeTime.split(':').map(Number)
+
+      const endDayOpenTime = new Date(endTime)
+      endDayOpenTime.setHours(endOpenHours, endOpenMinutes, 0, 0)
+
+      const endDayCloseTime = new Date(endTime)
+      endDayCloseTime.setHours(endCloseHours, endCloseMinutes, 0, 0)
+
+      const endDayActualStart = endDayOpenTime.getTime() // Use opening time of end day
+      const endDayActualEnd = endTime.getTime() < endDayCloseTime.getTime() ? endTime.getTime() : endDayCloseTime.getTime()
+
+      if (endDayActualStart < endDayActualEnd) {
+        totalMs += endDayActualEnd - endDayActualStart
+      }
     }
-
-    const dayOfWeek = startTime.getDay()
-    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
-
-    if (!dayHours) {
-      return 0
-    }
-
-    // Get operating hours for the day
-    const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number)
-    const [closeHours, closeMinutes] = dayHours.closeTime.split(':').map(Number)
-
-    const openTime = new Date(startTime)
-    openTime.setHours(openHours, openMinutes, 0, 0)
-
-    const closeTime = new Date(startTime)
-    closeTime.setHours(closeHours, closeMinutes, 0, 0)
-
-    // Clamp start and end times to operating hours
-    const actualStart = startTime.getTime() > openTime.getTime() ? startTime.getTime() : openTime.getTime()
-    const actualEnd = endTime.getTime() < closeTime.getTime() ? endTime.getTime() : closeTime.getTime()
-
-    if (actualStart >= actualEnd) {
-      return 0
-    }
-
-    // Calculate total time within operating hours
-    let totalMs = actualEnd - actualStart
 
     // Subtract any closure periods that overlap with our time range
     closureDates.forEach(closure => {
@@ -571,14 +615,11 @@ export default function BookingClient() {
       const closureEnd = new Date(closure.endDate) // UTC -> local timezone
 
       // Check if closure overlaps with our time range
-      // Closure overlaps if: closureStart < actualEnd AND closureEnd > actualStart
-      // Note: closureEnd is exclusive (shop reopens at closureEnd, so that time is chargeable)
-      if (closureStart.getTime() < actualEnd && closureEnd.getTime() > actualStart) {
+      // Closure overlaps if: closureStart < endTime AND closureEnd > startTime
+      if (closureStart.getTime() < endTime.getTime() && closureEnd.getTime() > startTime.getTime()) {
         // Calculate overlap period
-        // overlapStart is the later of closureStart and actualStart
-        const overlapStart = closureStart.getTime() > actualStart ? closureStart.getTime() : actualStart
-        // overlapEnd is the earlier of closureEnd and actualEnd, but closureEnd is exclusive
-        const overlapEnd = closureEnd.getTime() <= actualEnd ? closureEnd.getTime() : actualEnd
+        const overlapStart = closureStart.getTime() > startTime.getTime() ? closureStart.getTime() : startTime.getTime()
+        const overlapEnd = closureEnd.getTime() < endTime.getTime() ? closureEnd.getTime() : endTime.getTime()
         const overlapMs = Math.max(0, overlapEnd - overlapStart)
 
         // Subtract closure overlap from total time

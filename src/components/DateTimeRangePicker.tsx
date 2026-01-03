@@ -330,35 +330,46 @@ export function DateTimeRangePicker({
       return startTime.getTime() < closureEnd.getTime() && endTime.getTime() > closureStart.getTime()
     })
   }
-
-  // Helper function to validate if a time slot is valid (within shop hours and not in closure)
-  const validateTimeSlot = (startTime: Date, endTime: Date): { isValid: boolean; errorMessage?: string } => {
-    // Check if start time is within shop hours
-    if (!isTimeWithinShopHours(startTime)) {
+  const GRACE_MINUTES = 5
+  const GRACE_MS = GRACE_MINUTES * 60 * 1000
+  
+  const addGrace = (time: Date) =>
+    new Date(time.getTime() + GRACE_MS)
+  
+  const validateTimeSlot = (
+    startTime: Date,
+    endTime: Date
+  ): { isValid: boolean; errorMessage?: string } => {
+  
+    const now = new Date()
+  
+    // 🔹 Relaxed start time check
+    if (!isTimeWithinShopHours(addGrace(startTime)) && now > addGrace(startTime)) {
       return {
         isValid: false,
         errorMessage: 'Unable to book this slot as the shop is close in this timeslot.'
       }
     }
-    
-    // Check if end time is within shop hours
-    if (!isTimeWithinShopHours(endTime)) {
+  
+    // 🔹 Relaxed end time check
+    if (!isTimeWithinShopHours(addGrace(endTime)) && now > addGrace(endTime)) {
       return {
         isValid: false,
         errorMessage: 'Unable to book this slot as the shop is close in this timeslot.'
       }
     }
-    
-    // Check if the entire time slot overlaps with any closure period
-    if (isTimeSlotInClosure(startTime, endTime)) {
+  
+    // 🔹 Closure check with grace
+    if (isTimeSlotInClosure(startTime, addGrace(endTime)) && now > addGrace(endTime)) {
       return {
         isValid: false,
         errorMessage: 'Unable to book this slot as the shop is close in this timeslot.'
       }
     }
-    
+  
     return { isValid: true }
   }
+  
 
   // Handler for when user clicks on calendar date (onSelect event)
   // This fires specifically when user clicks on a date in the calendar
@@ -497,6 +508,31 @@ export function DateTimeRangePicker({
         validDate = getOptimalEndTime(date) // shop opening time
       }
       validDate = enforceStrict15Minutes(validDate)!
+      
+      // Validate the time slot for overnight bookings
+      // Check minimum 1 hour duration
+      const durationMs = validDate.getTime() - startDate.getTime()
+      const durationHours = durationMs / (1000 * 60 * 60)
+      if (durationHours < 1) {
+        toast({
+          title: "Invalid Time Slot",
+          description: "Minimum booking duration is 1 hour",
+          variant: "destructive",
+        })
+        return
+      }
+      
+      // Validate the entire time slot (handles overnight bookings correctly)
+      const validation = validateTimeSlot(startDate, validDate)
+      if (!validation.isValid) {
+        toast({
+          title: "Invalid Time Slot",
+          description: validation.errorMessage,
+          variant: "destructive",
+        })
+        return
+      }
+      
       onEndDateChange(validDate)
       return
     }
@@ -517,14 +553,14 @@ export function DateTimeRangePicker({
     }
   
     // Final validations
-    if (!isTimeWithinShopHours(validDate)) {
-      toast({
-        title: "Invalid Time Slot",
-        description: "Shop is closed in this timeslot",
-        variant: "destructive",
-      })
-      return
-    }
+    // if (!isTimeWithinShopHours(validDate)) {
+    //   toast({
+    //     title: "Invalid Time Slot",
+    //     description: "Shop is closed in this timeslot",
+    //     variant: "destructive",
+    //   })
+    //   return
+    // }
   
     const validation = validateTimeSlot(startDate, validDate)
     if (!validation.isValid) {
@@ -570,17 +606,25 @@ export function DateTimeRangePicker({
       }
     }
 
-    // If end date is different day, calculate max time based on 24-hour limit from start date
+    // If end date is different day (overnight booking), calculate max time based on 24-hour limit from start date
     const maxDurationMs = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
     const maxEndTime = new Date(startDate.getTime() + maxDurationMs)
     
-    // If calculated max time exceeds the end date, use end of end date
-    // Otherwise, use the calculated max time
-    const maxTime = maxEndTime > endDate ? endDate : maxEndTime
-    
-    return {
-      minTime: setHours(setMinutes(new Date(), 0), 0), // From 12:00 AM
-      maxTime: maxTime // Maximum time based on 24-hour limit
+    // For overnight bookings, we need to check if maxEndTime falls on the same day as endDate
+    // If maxEndTime is on a different day than endDate, allow full day for endDate
+    // Otherwise, limit to the maxEndTime
+    if (isSameDay(maxEndTime, endDate)) {
+      // Max time is within the end date, so use maxEndTime
+      return {
+        minTime: setHours(setMinutes(new Date(endDate), 0), 0), // From 12:00 AM of end date
+        maxTime: maxEndTime // Maximum time based on 24-hour limit
+      }
+    } else {
+      // Max time exceeds end date, so allow full day for end date
+      return {
+        minTime: setHours(setMinutes(new Date(endDate), 0), 0), // From 12:00 AM of end date
+        maxTime: setHours(setMinutes(endDate, 59), 23) // Until 11:59 PM of end date
+      }
     }
   }
 

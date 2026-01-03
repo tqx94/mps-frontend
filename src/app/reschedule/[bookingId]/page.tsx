@@ -1333,57 +1333,8 @@ export default function ReschedulePage() {
                     <DateTimeRangePicker
                       startDate={newStartDate}
                       endDate={newEndDate}
-                      onStartDateChange={(date) => {
-                        setNewStartDate(date)
-                        // Auto-update end date if original duration exists
-                        if (date && originalDuration > 0) {
-                          const calculatedEndDate = new Date(date.getTime() + (originalDuration * 60 * 60 * 1000))
-                          
-                          // Validate that calculated end time is within shop hours
-                          // Note: For overnight bookings, this will check end time against end date's shop hours
-                          // The DateTimeRangePicker's validateTimeSlot will handle the full validation
-                          if (!isTimeWithinShopHours(calculatedEndDate)) {
-                            toast({
-                              title: "Invalid Time Slot",
-                              description: "Unable to reschedule as the shop is closed in this timeslot. Please select an earlier start time.",
-                              variant: "destructive",
-                            })
-                            // Don't auto-set end date, let user manually select a valid end time
-                            setNewEndDate(null)
-                            return
-                          }
-                          
-                          // Allow overnight bookings - set the calculated end date regardless of day
-                          // The DateTimeRangePicker's validateTimeSlot will ensure both start and end times
-                          // are within their respective days' shop hours and no closures overlap
-                          setNewEndDate(calculatedEndDate)
-                        }
-                      }}
-                      onEndDateChange={(date) => {
-                        if (!date || !newStartDate) {
-                          setNewEndDate(null)
-                          return
-                        }
-                        
-                        // Validate that end time is within shop hours
-                        if (!isTimeWithinShopHours(date)) {
-                          toast({
-                            title: "Invalid Time Slot",
-                            description: "Unable to reschedule as the shop is closed in this timeslot. Please select an earlier end time.",
-                            variant: "destructive",
-                          })
-                          setNewEndDate(null)
-                          return
-                        }
-                        
-                        // Ensure end date is on the same day as start date
-                        if (!isSameDay(date, newStartDate)) {
-                          // If user tries to select a different day, set to end of start day
-                          setNewEndDate(date)
-                        } else {
-                          setNewEndDate(date)
-                        }
-                      }}
+                      onStartDateChange={setNewStartDate}
+                      onEndDateChange={setNewEndDate}
                       location="Kovan"
                       dateFormat="MMM d, h:mm aa"
                       placeholderStart="Select start time"
