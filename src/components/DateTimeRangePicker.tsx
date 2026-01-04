@@ -520,6 +520,25 @@ export function DateTimeRangePicker({
       if (isSameDay(date, startDate)) {
         validDate = new Date(startDate.getTime() + 60 * 60 * 1000)
       } else {
+        // Overnight booking: Only allow if shop closes at 11:55 PM or later
+        const startDayOfWeek = startDate.getDay()
+        const startDayHours = operatingHours.find(h => h.dayOfWeek === startDayOfWeek && h.isActive)
+        
+        if (startDayHours) {
+          const [closeHours, closeMinutes] = startDayHours.closeTime.split(':').map(Number)
+          
+          // Check if shop closes before 11:55 PM (23:55)
+          // If shop closes before 11:55 PM, block overnight booking
+          if (closeHours < 23 || (closeHours === 23 && closeMinutes < 55)) {
+            toast({
+              title: "Invalid Time Slot",
+              description: "Unable to book this slot as the shop is close in this timeslot.",
+              variant: "destructive",
+            })
+            return
+          }
+        }
+        
         validDate = getOptimalEndTime(date) // shop opening time
       }
       validDate = enforceStrict15Minutes(validDate)!
@@ -554,19 +573,40 @@ export function DateTimeRangePicker({
   
     // Normal time selection
     validDate = enforceStrict15Minutes(date)!
-  
+
     // If same day, ignore if user clicked the same time
     if (isSameDay(validDate, startDate) && endDate && validDate.getTime() === endDate.getTime()) {
       return
     }
-  
+
+    // Check overnight booking restriction: Only allow if shop closes at 11:55 PM or later
+    if (!isSameDay(validDate, startDate)) {
+      const startDayOfWeek = startDate.getDay()
+      const startDayHours = operatingHours.find(h => h.dayOfWeek === startDayOfWeek && h.isActive)
+      
+      if (startDayHours) {
+        const [closeHours, closeMinutes] = startDayHours.closeTime.split(':').map(Number)
+        
+        // Check if shop closes before 11:55 PM (23:55)
+        // If shop closes before 11:55 PM, block overnight booking
+        if (closeHours < 23 || (closeHours === 23 && closeMinutes < 55)) {
+          toast({
+            title: "Invalid Time Slot",
+            description: "Unable to book this slot as the shop is close in this timeslot.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+    }
+
     const minEndTime = new Date(startDate.getTime() + 60 * 60 * 1000)
-  
+
     if (isSameDay(validDate, startDate) && validDate < minEndTime) {
       // Force set to minEndTime instead of showing toast
       validDate = minEndTime
     }
-  
+
     // Final validations
     // if (!isTimeWithinShopHours(validDate)) {
     //   toast({
