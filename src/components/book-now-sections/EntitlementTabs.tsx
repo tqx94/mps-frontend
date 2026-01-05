@@ -134,6 +134,11 @@ type Props = {
   locationPrice?: number
   totalPeople?: number // Number of people in the booking
   showOnlyCredit?: boolean // If true, only show credit section without tabs
+  peopleBreakdown?: {
+    coStudents: number
+    coWorkers: number
+    coTutors: number
+  }
 }
 
 export function EntitlementTabs({
@@ -149,13 +154,14 @@ export function EntitlementTabs({
   userRole = 'MEMBER',
   locationPrice = 0,
   totalPeople = 1,
-  showOnlyCredit = false
+  showOnlyCredit = false,
+  peopleBreakdown = { coStudents: 0, coWorkers: 0, coTutors: 0 }
 }: Props) {
   const [localPromo, setLocalPromo] = useState(promoCode || '')
   const [promoFeedback, setPromoFeedback] = useState<{ isValid: boolean; message: string } | null>(null)
   const [availablePromos, setAvailablePromos] = useState<PromoCode[]>([])
   const [isLoadingPromos, setIsLoadingPromos] = useState(false)
-  const [isApplyingPromo, setIsApplyingPromo] = useState(false)
+  const [applyingPromoId, setApplyingPromoId] = useState<string | null>(null)
   const [selectedPromoCode, setSelectedPromoCode] = useState<PromoCode | null>(null)
   const [discountCalculation, setDiscountCalculation] = useState<{
     discountAmount: number
@@ -306,20 +312,22 @@ export function EntitlementTabs({
       return;
     }
 
-    setIsApplyingPromo(true);
-    try {
-      const foundPromo = availablePromos.find(promo =>
-        promo.code.toLowerCase() === codeToApply.toLowerCase()
-      );
+    const foundPromo = availablePromos.find(promo =>
+      promo.code.toLowerCase() === codeToApply.toLowerCase()
+    );
 
-      if (!foundPromo) {
-        setPromoFeedback({ isValid: false, message: 'Invalid promo code' });
-        return;
-      }
+    if (!foundPromo) {
+      setPromoFeedback({ isValid: false, message: 'Invalid promo code' });
+      return;
+    }
+
+    setApplyingPromoId(foundPromo.id);
+    try {
 
       const localValidation = validatePromoCodeLocally(foundPromo, bookingAmount);
       if (!localValidation.isValid) {
         setPromoFeedback({ isValid: false, message: localValidation.message });
+        setApplyingPromoId(null);
         toast({
           title: "Invalid Promo Code",
           description: localValidation.message,
@@ -378,7 +386,7 @@ export function EntitlementTabs({
         variant: "destructive"
       });
     } finally {
-      setIsApplyingPromo(false);
+      setApplyingPromoId(null);
     }
   }, [localPromo, userId, bookingAmount, availablePromos, onChange, toast, bookingDuration]);
 
@@ -1007,12 +1015,18 @@ const getRemainingPasses = (pkg: ApiUserPackage) => {
                   const meetsPromoMinimumHours = !promo.minimumHours || !bookingDuration ||
                     validateMinimumHours(promo, bookingDuration).isValid;
 
-                  const isEligible = meetsMinimumHours && meetsPromoMinimumHours;
+                  const isStudentPromoCode = promo.promoType === 'GROUP_SPECIFIC' && promo.targetGroup === 'STUDENT';
+                  const hasStudents = peopleBreakdown.coStudents > 0;
+                  const hasTutors = peopleBreakdown.coTutors > 0;
+                  
+                  // Student promo codes are only eligible if students are present AND no tutors in booking
+                  const isEligible = meetsMinimumHours && meetsPromoMinimumHours && 
+                    (!isStudentPromoCode || (hasStudents && !hasTutors));
 
                   return (
                     <Card
                       key={promo.id}
-                      className={`border-gray-200 transition-colors ${isEligible
+                      className={`border-gray-200 transition-colors ${isEligible && (!isStudentPromoCode || (hasStudents && !hasTutors))
                           ? 'hover:border-gray-300'
                           : 'opacity-60 bg-gray-50 border-gray-300'
                         }`}
@@ -1044,6 +1058,22 @@ const getRemainingPasses = (pkg: ApiUserPackage) => {
                                     <Clock className="w-3 h-3 text-blue-500" />
                                     <p className="text-xs text-blue-600 font-medium">
                                       Min. {promo.minimumHours} hours required
+                                    </p>
+                                  </div>
+                                )}
+                                {isStudentPromoCode && !hasStudents && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <AlertCircle className="w-3 h-3 text-amber-500" />
+                                    <p className="text-xs text-amber-600 font-medium">
+                                      Students must be included in booking
+                                    </p>
+                                  </div>
+                                )}
+                                {isStudentPromoCode && hasTutors && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <AlertCircle className="w-3 h-3 text-red-500" />
+                                    <p className="text-xs text-red-600 font-medium">
+                                      Cannot use student promo code when tutor is in booking
                                     </p>
                                   </div>
                                 )}
@@ -1088,13 +1118,15 @@ const getRemainingPasses = (pkg: ApiUserPackage) => {
                                 setLocalPromo(promo.code);
                                 handleValidatePromo(promo.code);
                               }}
-                              disabled={!!selectedPromoCode || !isEligible || isApplyingPromo}
+                              disabled={!!selectedPromoCode || !isEligible || !!applyingPromoId || (isStudentPromoCode && (!hasStudents || hasTutors))}
                               className={`${selectedPromoCode?.id === promo.id
                                   ? 'bg-green-600 hover:bg-green-700'
-                                  : 'bg-orange-500 hover:bg-orange-600'
+                                  : isEligible && (!isStudentPromoCode || (hasStudents && !hasTutors))
+                                    ? 'bg-orange-500 hover:bg-orange-600'
+                                    : 'bg-gray-400 cursor-not-allowed'
                                 } text-white`}
                             >
-                              {isApplyingPromo ? (
+                              {applyingPromoId === promo.id ? (
                                 <>
                                   <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                                   Applying...

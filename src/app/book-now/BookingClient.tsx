@@ -2129,6 +2129,7 @@ export default function BookingClient() {
                                 (individualPersonHours === 1 ? pricing.member.oneHourRate : pricing.member.overOneHourRate)
                           })()}
                           totalPeople={people}
+                          peopleBreakdown={peopleBreakdown}
                         />
                       )}
                       {/* ──────────────────────────────────────────────── */}
