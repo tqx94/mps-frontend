@@ -1955,32 +1955,109 @@ export function BookingManagement() {
                                                 <p className="text-gray-600">{activity.activityDescription}</p>
                                               )}
 
-                                              {/* Seat Information for Booking Updated */}
-                                              {activity.activityType === 'BOOKING_UPDATED' && activity.metadata && (activity.metadata.originalSeatNumbers || activity.metadata.newSeatNumbers) ? (
-                                                <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
-                                                  {/* Old Seats */}
-                                                  {activity.metadata.originalSeatNumbers && activity.metadata.originalSeatNumbers.length > 0 && (
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Old seats:</span>
-                                                      <span className="text-xs font-medium">{activity.metadata.originalSeatNumbers.join(', ')}</span>
-                                                    </div>
-                                                  )}
-                                                  {/* New Seats */}
-                                                  {activity.metadata.newSeatNumbers && activity.metadata.newSeatNumbers.length > 0 && (
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-blue-600 font-medium">New seats:</span>
-                                                      <span className="text-xs font-medium">{activity.metadata.newSeatNumbers.join(', ')}</span>
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              ) : activity.activityType === 'BOOKING_UPDATED' && detailData?.booking && detailData.booking.seatNumbers && detailData.booking.seatNumbers.length > 0 && (
-                                                // Fallback: show current seats if metadata not available
-                                                <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
-                                                  <div className="flex items-center gap-1">
-                                                    <span className="text-blue-600 font-medium">Seats:</span>
-                                                    <span className="text-xs font-medium">{detailData.booking.seatNumbers.join(', ')}</span>
-                                                  </div>
-                                                </div>
+                                              {/* Seat Information for Reschedule, Extend, and Booking Updated */}
+                                              {(activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED' || activity.activityType === 'BOOKING_UPDATED') && (
+                                                (() => {
+                                                  // Get seats from metadata if available
+                                                  const oldSeats = activity.metadata?.originalSeatNumbers || [];
+                                                  const newSeats = activity.metadata?.newSeatNumbers || [];
+                                                  
+                                                  // If no metadata, find seats from activities that happened AFTER this one
+                                                  // We need to find the LAST (most recent) seat change that happened before the next seat change
+                                                  let historicalSeats: string[] = [];
+                                                  if (oldSeats.length === 0 && newSeats.length === 0) {
+                                                    // Find the current activity's index in the activities array
+                                                    const currentIndex = activities.findIndex((a: any) => 
+                                                      a.id === activity.id || 
+                                                      (a.createdAt === activity.createdAt && a.activityType === activity.activityType)
+                                                    );
+                                                    
+                                                    if (currentIndex >= 0) {
+                                                      // Look through all activities that happened after this one (indices 0 to currentIndex-1)
+                                                      // Find the FIRST (chronologically first, which is the LAST in array) activity with seat metadata
+                                                      // This represents the seats that were present at our current activity's time
+                                                      // We need the FIRST seat change that happened after this activity
+                                                      for (let i = currentIndex - 1; i >= 0; i--) {
+                                                        const laterActivity = activities[i];
+                                                        if (laterActivity?.metadata?.originalSeatNumbers && laterActivity.metadata.originalSeatNumbers.length > 0) {
+                                                          // This is the first seat change after our current activity
+                                                          // Its originalSeatNumbers represents seats before that change,
+                                                          // which were the seats at our current activity's time
+                                                          historicalSeats = laterActivity.metadata.originalSeatNumbers;
+                                                          break;
+                                                        }
+                                                      }
+                                                      
+                                                      // If no seat change found after this activity, look for the last seat change before this
+                                                      if (historicalSeats.length === 0) {
+                                                        for (let i = currentIndex + 1; i < activities.length; i++) {
+                                                          const earlierActivity = activities[i];
+                                                          if (earlierActivity?.metadata?.newSeatNumbers && earlierActivity.metadata.newSeatNumbers.length > 0) {
+                                                            // Use newSeatNumbers from the last change before this activity
+                                                            historicalSeats = earlierActivity.metadata.newSeatNumbers;
+                                                            break;
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                  
+                                                  // Determine which seats to show
+                                                  let seatsToShow: string[] = [];
+                                                  let hasOldSeats = false;
+                                                  let hasNewSeats = false;
+                                                  
+                                                  if (oldSeats.length > 0 || newSeats.length > 0) {
+                                                    // Use metadata seats
+                                                    hasOldSeats = oldSeats.length > 0;
+                                                    hasNewSeats = newSeats.length > 0;
+                                                  } else if (historicalSeats.length > 0) {
+                                                    // Use historical seats from later activity
+                                                    seatsToShow = historicalSeats;
+                                                  }
+                                                  
+                                                  // Only show seats section if we have seat data
+                                                  if ((hasOldSeats || hasNewSeats) || seatsToShow.length > 0) {
+                                                    const oldSeatsStr = oldSeats.sort().join(', ');
+                                                    const newSeatsStr = newSeats.sort().join(', ');
+                                                    const seatsAreSame = hasOldSeats && hasNewSeats && oldSeatsStr === newSeatsStr;
+                                                    
+                                                    return (
+                                                      <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
+                                                        {seatsAreSame ? (
+                                                          // Seats are the same, show "Original seats"
+                                                          <div className="flex items-center gap-1">
+                                                            <span className="text-gray-500">Original seats:</span>
+                                                            <span className="text-xs font-medium">{oldSeatsStr}</span>
+                                                          </div>
+                                                        ) : hasOldSeats || hasNewSeats ? (
+                                                          // Seats changed, show old and new
+                                                          <>
+                                                            {hasOldSeats && (
+                                                              <div className="flex items-center gap-1">
+                                                                <span className="text-gray-500">Old seats:</span>
+                                                                <span className="text-xs font-medium">{oldSeatsStr}</span>
+                                                              </div>
+                                                            )}
+                                                            {hasNewSeats && (
+                                                              <div className="flex items-center gap-1">
+                                                                <span className="text-blue-600 font-medium">New seats:</span>
+                                                                <span className="text-xs font-medium">{newSeatsStr}</span>
+                                                              </div>
+                                                            )}
+                                                          </>
+                                                        ) : seatsToShow.length > 0 ? (
+                                                          // Show historical seats as "Original seats"
+                                                          <div className="flex items-center gap-1">
+                                                            <span className="text-gray-500">Original seats:</span>
+                                                            <span className="text-xs font-medium">{seatsToShow.join(', ')}</span>
+                                                          </div>
+                                                        ) : null}
+                                                      </div>
+                                                    );
+                                                  }
+                                                  return null;
+                                                })()
                                               )}
 
                                               {/* Payment Information for Reschedule/Extend */}
@@ -2042,13 +2119,40 @@ export function BookingManagement() {
                                               {/* Original Seat and Booking Information */}
                                               {detailData?.booking && (
                                                 <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
-                                                  {/* Original Seats */}
-                                                  {detailData.booking.seatNumbers && detailData.booking.seatNumbers.length > 0 && (
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Original seats:</span>
-                                                      <span className="text-xs font-medium">{detailData.booking.seatNumbers.join(', ')}</span>
-                                                    </div>
-                                                  )}
+                                                  {/* Original Seats - Find from oldest seat change activity */}
+                                                  {(() => {
+                                                    // Find the oldest activity (highest index) that has seat change metadata
+                                                    // The originalSeatNumbers from the oldest seat change represents seats at booking creation
+                                                    let creationSeats: string[] = [];
+                                                    if (activities && activities.length > 0) {
+                                                      // Array is sorted newest to oldest, so highest index = oldest
+                                                      // Find the activity with highest index that has seat metadata
+                                                      let oldestSeatChangeIndex = -1;
+                                                      for (let i = 0; i < activities.length; i++) {
+                                                        const act = activities[i];
+                                                        if (act?.metadata?.originalSeatNumbers && act.metadata.originalSeatNumbers.length > 0) {
+                                                          // Track the highest index (oldest) seat change
+                                                          oldestSeatChangeIndex = i;
+                                                        }
+                                                      }
+                                                      
+                                                      if (oldestSeatChangeIndex >= 0) {
+                                                        // Use originalSeatNumbers from the oldest seat change
+                                                        creationSeats = activities[oldestSeatChangeIndex].metadata.originalSeatNumbers;
+                                                      }
+                                                    }
+                                                    
+                                                    // Only show if we found seats from activity history
+                                                    if (creationSeats.length > 0) {
+                                                      return (
+                                                        <div className="flex items-center gap-1">
+                                                          <span className="text-gray-500">Original seats:</span>
+                                                          <span className="text-xs font-medium">{creationSeats.join(', ')}</span>
+                                                        </div>
+                                                      );
+                                                    }
+                                                    return null;
+                                                  })()}
                                                   {/* Original Booking Time */}
                                                   {detailData.booking.startAt && detailData.booking.endAt && (
                                                     <div className="flex items-center gap-1">
