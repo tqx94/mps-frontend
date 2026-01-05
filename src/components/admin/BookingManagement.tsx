@@ -1816,10 +1816,14 @@ export function BookingManagement() {
                             }
 
                             // Get payment details - check multiple possible field names
+                            // Priority: activity metadata > matched payment record
                             const paymentAmount = matchedPayment?.amount ? parseFloat(matchedPayment.amount) : 
                                                   matchedPayment?.totalAmount ? parseFloat(matchedPayment.totalAmount) :
                                                   (activity.amount || null);
-                            const paymentMethod = matchedPayment?.paymentMethod || matchedPayment?.paymentmethod || null;
+                            const paymentMethod = activity.metadata?.paymentMethod || 
+                                                  matchedPayment?.paymentMethod || 
+                                                  matchedPayment?.paymentmethod || 
+                                                  null;
                             const transactionFee = paymentAmount && paymentMethod ? calculateTransactionFee(paymentAmount, paymentMethod) : null;
 
                             return (
@@ -2060,21 +2064,17 @@ export function BookingManagement() {
                                                 })()
                                               )}
 
-                                              {/* Payment Information for Reschedule/Extend */}
-                                              {(paymentAmount || paymentMethod) && (
+                                              {/* Payment Information for Reschedule/Extend - Only show if there's actual payment (not just credits) */}
+                                              {paymentAmount && paymentAmount > 0 && paymentMethod && (
                                                 <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
-                                                  {paymentMethod && (
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Payment mode:</span>
-                                                      <span className="text-xs font-medium">{paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
-                                                    </div>
-                                                  )}
-                                                  {paymentAmount && paymentAmount > 0 && (
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Payment amount:</span>
-                                                      <span className="text-xs text-green-600 font-medium">${paymentAmount.toFixed(2)}</span>
-                                                    </div>
-                                                  )}
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-gray-500">Payment mode:</span>
+                                                    <span className="text-xs font-medium">{paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-gray-500">Payment amount:</span>
+                                                    <span className="text-xs text-green-600 font-medium">${paymentAmount.toFixed(2)}</span>
+                                                  </div>
                                                   {transactionFee !== null && transactionFee > 0 && (
                                                     <div className="flex items-center gap-1">
                                                       <span className="text-gray-500">Transaction fee incurred:</span>
@@ -2088,27 +2088,13 @@ export function BookingManagement() {
                                             <div className="space-y-1">
                                               <p className="text-gray-600">{activity.activityDescription}</p>
                                               
-                                              {/* Payment Information for Package/Credit Usage */}
-                                              {(paymentAmount || paymentMethod) && (
+                                              {/* Credit/Package amount only - NO payment method for credits/packages */}
+                                              {activity.amount && activity.amount > 0 && (
                                                 <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
-                                                  {paymentMethod && (
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Payment mode:</span>
-                                                      <span className="text-xs font-medium">{paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
-                                                    </div>
-                                                  )}
-                                                  {paymentAmount && paymentAmount > 0 && (
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Payment amount:</span>
-                                                      <span className="text-xs text-green-600 font-medium">${paymentAmount.toFixed(2)}</span>
-                                                    </div>
-                                                  )}
-                                                  {transactionFee !== null && transactionFee > 0 && (
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Transaction fee incurred:</span>
-                                                      <span className="text-xs text-orange-600">${transactionFee.toFixed(2)}</span>
-                                                    </div>
-                                                  )}
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-gray-500">Credit/Package amount:</span>
+                                                    <span className="text-xs text-green-600 font-medium">${activity.amount.toFixed(2)}</span>
+                                                  </div>
                                                 </div>
                                               )}
                                             </div>
