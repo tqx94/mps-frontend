@@ -28,6 +28,10 @@ interface DateTimeRangePickerProps {
   fullWidth?: boolean
   endOnly?: boolean
   endOnlyLabel?: string
+  // Optional props to pass data from parent to avoid duplicate API calls
+  operatingHours?: OperatingHours[]
+  closureDates?: ClosureDate[]
+  isLoadingShopHours?: boolean
 }
 
 export function DateTimeRangePicker({
@@ -45,18 +49,32 @@ export function DateTimeRangePicker({
   inputClassName = '',
   fullWidth = false,
   endOnly = false,
-  endOnlyLabel = 'To'
+  endOnlyLabel = 'To',
+  // Optional props from parent
+  operatingHours: propOperatingHours,
+  closureDates: propClosureDates,
+  isLoadingShopHours: propIsLoadingShopHours
 }: DateTimeRangePickerProps) {
   const { toast } = useToast()
   
-  // Shop hours state
+  // Shop hours state - use props if provided, otherwise manage locally
   const [operatingHours, setOperatingHours] = useState<OperatingHours[]>([])
   const [closureDates, setClosureDates] = useState<ClosureDate[]>([])
   const [isLoadingShopHours, setIsLoadingShopHours] = useState(false)
   const isAutoSettingEndRef = useRef(false)
 
-  // Load shop hours on mount
+  // Use props if provided, otherwise use local state
+  const finalOperatingHours = propOperatingHours ?? operatingHours
+  const finalClosureDates = propClosureDates ?? closureDates
+  const finalIsLoadingShopHours = propIsLoadingShopHours ?? isLoadingShopHours
+
+  // Load shop hours on mount only if not provided via props
   useEffect(() => {
+    // Skip API call if data is provided via props
+    if (propOperatingHours !== undefined && propClosureDates !== undefined) {
+      return
+    }
+
     const loadShopHours = async () => {
       setIsLoadingShopHours(true)
       try {
@@ -75,7 +93,7 @@ export function DateTimeRangePicker({
     }
 
     loadShopHours()
-  }, [location])
+  }, [location, propOperatingHours, propClosureDates])
 
   // Calculate max date (2 months from today)
   const maxBookingDate = addMonths(new Date(), 2)
@@ -109,7 +127,7 @@ export function DateTimeRangePicker({
   const getExcludedDates = (): Date[] => {
     const excluded: Date[] = []
 
-    closureDates.forEach(closure => {
+    finalClosureDates.forEach(closure => {
       // Convert UTC dates to local timezone
       const closureStart = new Date(closure.startDate)
       const closureEnd = new Date(closure.endDate)
@@ -126,7 +144,7 @@ export function DateTimeRangePicker({
       let currentDate = new Date(closureStartDate)
       while (currentDate <= closureEndDate) {
         const dayOfWeek = currentDate.getDay()
-        const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+        const dayHours = finalOperatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
 
         if (dayHours) {
           // Parse operating hours
@@ -166,10 +184,10 @@ export function DateTimeRangePicker({
 
    
 
-    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+    const dayHours = finalOperatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
 
     // CRITICAL: Always show times even if hours aren't loaded yet (fallback)
-    if (operatingHours.length === 0 || !dayHours) {
+    if (finalOperatingHours.length === 0 || !dayHours) {
       const times: Date[] = []
       const start = new Date(date)
       start.setHours(0, 0, 0, 0)
@@ -198,7 +216,7 @@ export function DateTimeRangePicker({
       // Check if time is within operating hours
       if (timeString >= openTime && timeString <= closeTime) {
         // Check if this time slot falls within any closure period
-        const isInClosure = closureDates.some(closure => {
+        const isInClosure = finalClosureDates.some(closure => {
           const closureStart = new Date(closure.startDate) // UTC -> local timezone
           const closureEnd = new Date(closure.endDate) // UTC -> local timezone
           
@@ -269,7 +287,7 @@ export function DateTimeRangePicker({
     const isToday = isSameDay(selectedDate, now)
     const dayOfWeek = selectedDate.getDay()
   
-    const dayHours = operatingHours.find(
+    const dayHours = finalOperatingHours.find(
       h => h.dayOfWeek === dayOfWeek && h.isActive
     )
   
@@ -306,9 +324,9 @@ export function DateTimeRangePicker({
   // Helper function to check if a time is within shop hours
   const isTimeWithinShopHours = (date: Date): boolean => {
     const dayOfWeek = date.getDay()
-    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+    const dayHours = finalOperatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
     
-    if (!dayHours || operatingHours.length === 0) {
+    if (!dayHours || finalOperatingHours.length === 0) {
       return false // No shop hours for this day
     }
     
@@ -321,7 +339,7 @@ export function DateTimeRangePicker({
 
   // Helper function to check if a time slot overlaps with closure periods
   const isTimeSlotInClosure = (startTime: Date, endTime: Date): boolean => {
-    return closureDates.some(closure => {
+    return finalClosureDates.some(closure => {
       const closureStart = new Date(closure.startDate) // UTC -> local timezone
       const closureEnd = new Date(closure.endDate) // UTC -> local timezone
       
@@ -339,9 +357,9 @@ export function DateTimeRangePicker({
   // Helper to check if time is within shop hours with 5-minute grace for overnight bookings
   const isTimeWithinShopHoursWithGrace = (date: Date, isOvernight: boolean): boolean => {
     const dayOfWeek = date.getDay()
-    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+    const dayHours = finalOperatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
     
-    if (!dayHours || operatingHours.length === 0) {
+    if (!dayHours || finalOperatingHours.length === 0) {
       return false
     }
     
@@ -482,9 +500,9 @@ export function DateTimeRangePicker({
 
     // If different day, use shop open time for that day
     const dayOfWeek = selectedDate.getDay()
-    const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
+    const dayHours = finalOperatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
     
-    if (dayHours && operatingHours.length > 0) {
+    if (dayHours && finalOperatingHours.length > 0) {
       const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number)
       const openTime = new Date(selectedDate)
       openTime.setHours(openHours, openMinutes, 0, 0)
@@ -522,7 +540,7 @@ export function DateTimeRangePicker({
       } else {
         // Overnight booking: Only allow if shop closes at 11:55 PM or later
         const startDayOfWeek = startDate.getDay()
-        const startDayHours = operatingHours.find(h => h.dayOfWeek === startDayOfWeek && h.isActive)
+        const startDayHours = finalOperatingHours.find(h => h.dayOfWeek === startDayOfWeek && h.isActive)
         
         if (startDayHours) {
           const [closeHours, closeMinutes] = startDayHours.closeTime.split(':').map(Number)
@@ -582,7 +600,7 @@ export function DateTimeRangePicker({
     // Check overnight booking restriction: Only allow if shop closes at 11:55 PM or later
     if (!isSameDay(validDate, startDate)) {
       const startDayOfWeek = startDate.getDay()
-      const startDayHours = operatingHours.find(h => h.dayOfWeek === startDayOfWeek && h.isActive)
+      const startDayHours = finalOperatingHours.find(h => h.dayOfWeek === startDayOfWeek && h.isActive)
       
       if (startDayHours) {
         const [closeHours, closeMinutes] = startDayHours.closeTime.split(':').map(Number)
@@ -736,7 +754,7 @@ export function DateTimeRangePicker({
   // Memoize available end times to avoid recalculation on every render
   const availableEndTimes = useMemo(() => {
     return getAvailableEndTimes(endDate)
-  }, [endDate, startDate, operatingHours, closureDates])
+  }, [endDate, startDate, finalOperatingHours, finalClosureDates])
 
   // Determine if layout should be vertical based on className
   const isVertical = className.includes('flex-col')
@@ -775,7 +793,7 @@ export function DateTimeRangePicker({
       <div className={pickerContainerClass}>
         <label className="text-xs text-gray-500 uppercase mb-1 text-left flex items-center gap-2">
           {endOnlyLabel}
-          {showLoader && isLoadingShopHours && <Loader2 className="h-3 w-3 animate-spin text-orange-500" />}
+          {showLoader && finalIsLoadingShopHours && <Loader2 className="h-3 w-3 animate-spin text-orange-500" />}
         </label>
         <DatePicker
           selected={endDate}
@@ -807,7 +825,7 @@ export function DateTimeRangePicker({
       <div className={pickerContainerClass}>
         <label className="text-xs text-gray-500 uppercase mb-1 text-left flex items-center gap-2">
           From
-          {showLoader && isLoadingShopHours && <Loader2 className="h-3 w-3 animate-spin text-orange-500" />}
+          {showLoader && finalIsLoadingShopHours && <Loader2 className="h-3 w-3 animate-spin text-orange-500" />}
         </label>
         <DatePicker
           selected={startDate}

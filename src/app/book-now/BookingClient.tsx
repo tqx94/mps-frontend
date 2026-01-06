@@ -103,7 +103,7 @@ export default function BookingClient() {
   })
 
   // Load pricing from database (single API call)
-  const loadPricing = async () => {
+  const loadPricing = useCallback(async () => {
     try {
       const allPricing = await getAllPricingForLocation('Kovan')
       setPricing(allPricing)
@@ -111,10 +111,10 @@ export default function BookingClient() {
       console.error('Error loading pricing:', error)
       // Keep fallback pricing if database fetch fails
     }
-  }
+  }, []) // No dependencies - only load once
 
   // Load payment fee settings from database
-  const loadPaymentFeeSettings = async () => {
+  const loadPaymentFeeSettings = useCallback(async () => {
     try {
       const { getPaymentSettings } = await import('@/lib/paymentSettingsService')
       const settings = await getPaymentSettings()
@@ -126,7 +126,7 @@ export default function BookingClient() {
       console.error('Error loading payment fee settings:', error)
       // Keep fallback values if database fetch fails
     }
-  }
+  }, []) // No dependencies - only load once
 
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
   const [bookedSeats, setBookedSeats] = useState<string[]>([])
@@ -145,7 +145,7 @@ export default function BookingClient() {
   const [isLoadingUserProfile, setIsLoadingUserProfile] = useState(false)
 
   // Fetch fresh user profile data
-  const loadFreshUserProfile = async () => {
+  const loadFreshUserProfile = useCallback(async () => {
     if (!userId) return
 
     setIsLoadingUserProfile(true)
@@ -163,28 +163,30 @@ export default function BookingClient() {
     } finally {
       setIsLoadingUserProfile(false)
     }
-  }
+  }, [userId]) // Only recreate when userId changes
 
+  // Load pricing and payment settings once on mount
+  useEffect(() => {
+    loadPricing() // Load dynamic pricing on component mount
+    loadPaymentFeeSettings() // Load dynamic payment fees on component mount
+  }, [loadPricing, loadPaymentFeeSettings]) // Dependencies are stable due to useCallback
+
+  // Handle step parameter from URL
   useEffect(() => {
     if (searchParams.get('step') === '3') {
       setBookingStep(3)
       // Scroll to top when moving to confirmation step from URL
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-    loadPricing() // Load dynamic pricing on component mount
-    loadPaymentFeeSettings() // Load dynamic payment fees on component mount
-    loadFreshUserProfile() // Load fresh user profile
-  }, [searchParams, userId])
+  }, [searchParams]) // Only depend on searchParams for step handling
 
-  // Load shop hours when location changes
+  // Load fresh user profile when userId changes
   useEffect(() => {
-    if (location && locations.length > 0) {
-      loadShopHours()
-    }
-  }, [location, locations])
+    loadFreshUserProfile() // Load fresh user profile
+  }, [userId]) // Only depend on userId
 
-  // Load shop hours and closure dates
-  const loadShopHours = async () => {
+  // Load shop hours and closure dates - memoized to prevent duplicate calls
+  const loadShopHours = useCallback(async () => {
     if (!location) return
 
     setIsLoadingShopHours(true)
@@ -205,7 +207,14 @@ export default function BookingClient() {
     } finally {
       setIsLoadingShopHours(false)
     }
-  }
+  }, [location]) // Only recreate when location changes
+
+  // Load shop hours when location changes
+  useEffect(() => {
+    if (location) {
+      loadShopHours()
+    }
+  }, [location, loadShopHours]) // location and the memoized function
 
 
 
@@ -1832,6 +1841,9 @@ export default function BookingClient() {
                           showLoader={true}
                           fullWidth={true}
                           className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
+                          operatingHours={operatingHours}
+                          closureDates={closureDates}
+                          isLoadingShopHours={isLoadingShopHours}
                         />
                       </div>
 
