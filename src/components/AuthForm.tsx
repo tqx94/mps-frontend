@@ -267,11 +267,10 @@ export function AuthForm({ type }: Props) {
     }
 
     try {
-      // Test Supabase connection first
-      console.log('Testing Supabase connection...')
+   
       const { data: testData, error: testError } = await supabase.from('User').select('count').limit(1)
       if (testError) {
-        console.error('Supabase connection test failed:', testError)
+     
         throw new Error(`Database connection failed: ${testError.message}`)
       }
       console.log('Supabase connection successful')

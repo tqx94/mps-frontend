@@ -160,41 +160,44 @@ export default function BookingForm() {
           <p className="mt-4 text-sm sm:text-base md:text-lg max-w-full px-2">Where Community meets Productivity</p>
 
           {/*  THE WHITE BAR - RESPONSIVE  */}
-          <div className="mt-6 md:mt-8 bg-white p-4 md:p-6 rounded-lg w-full max-w-5xl mx-auto overflow-x-hidden px-2 sm:px-4">
-            {/* Desktop Layout */}
-            <div className="hidden lg:flex space-x-4 xl:space-x-6 items-end flex-wrap gap-4">
+          <div className="mt-6 md:mt-8 bg-white p-4 md:p-6 rounded-lg w-full max-w-5xl mx-auto px-2 sm:px-4">
+
+            <div className="flex flex-col lg:flex-row lg:items-end gap-4 w-full justify-between">
 
               {/* LOCATION */}
-              <div className="flex flex-col">
-                <label className="text-xs text-gray-500 uppercase mb-1 text-left">Location</label>
-                <div className="flex w-36 items-center border-b border-gray-300 pb-2 text-sm text-black">
+              <div className="flex flex-col lg:w-36">
+                <label className="text-xs text-gray-500 uppercase mb-1 text-left">
+                  Location
+                </label>
+                <div className="border-b border-gray-300 pb-2 text-sm text-black text-left">
                   Kovan
                 </div>
               </div>
 
               {/* PEOPLE */}
-              <div className="flex flex-col">
-                <label className="text-xs text-gray-500 uppercase mb-1 text-left">People</label>
+              <div className="flex flex-col lg:w-32">
+                <label className="text-xs text-gray-500 uppercase mb-1 text-left">
+                  People
+                </label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button
-                      className="w-28 text-black border-b border-gray-300 pb-1 text-left focus:outline-none"
-                    >
+                    <button className="border-b border-gray-300 pb-1 text-left text-black focus:outline-none">
                       {people} {people === 1 ? 'Person' : 'People'}
-                      {peopleBreakdown.coTutors > 0 || peopleBreakdown.coStudents > 0 ? (
+                      {(peopleBreakdown.coTutors > 0 || peopleBreakdown.coStudents > 0) && (
                         <div className="text-xs text-gray-500 mt-1">
                           {peopleBreakdown.coWorkers}💼 {peopleBreakdown.coTutors}👩‍🏫 {peopleBreakdown.coStudents}🎓
                         </div>
-                      ) : null}
+                      )}
                     </button>
                   </PopoverTrigger>
+
                   <PopoverContent side="bottom" className="w-auto">
                     <PeopleSelector
                       value={people}
                       min={1}
                       max={15}
                       onChange={handlePeopleChange}
-                      showBreakdown={true}
+                      showBreakdown
                       onBreakdownChange={handleBreakdownChange}
                       storageKey="home-page-people-selector"
                       enablePersistence={false}
@@ -203,161 +206,33 @@ export default function BookingForm() {
                 </Popover>
               </div>
 
-              {/* DATE & TIME RANGE */}
-              <DateTimeRangePicker
-                startDate={startDate}
-                endDate={endDate}
-                onStartDateChange={setStartDate}
-                onEndDateChange={setEndDate}
-                location="Kovan"
-                dateFormat="MMM d, yyyy h:mm aa"
-                placeholderStart="Start"
-                placeholderEnd="End"
-              />
+              {/* DATE & TIME RANGE — ONLY ONCE 🔥 */}
+              <div className="">
+                <DateTimeRangePicker
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  location="Kovan"
+                  dateFormat="MMM d, yyyy h:mm aa"
+                  placeholderStart="Start"
+                  placeholderEnd="End"
+                />
+              </div>
 
               {/* BOOK BUTTON */}
-              <Button
-                onClick={handleBookNow}
-                className="bg-orange-500 text-white ml-auto px-6 py-2 transition-colors duration-200"
-                disabled={loading}
-              >
-                {loading ? 'Loading...' : 'Book Now →'}
-              </Button>
-            </div>
-
-            {/* Tablet Layout */}
-            <div className="hidden md:flex lg:hidden flex-col space-y-4">
-              {/* Row 1: Location and People */}
-              <div className="flex space-x-6">
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-500 uppercase text-left">Location</label>
-                  <div className="flex w-32 items-center border-b border-gray-300 text-sm text-black">
-                    Kovan
-                  </div>
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-500 uppercase mb-1 text-left">People</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        className="w-28 text-black border-b border-gray-300 pb-1 text-left focus:outline-none"
-                      >
-                        {people} {people === 1 ? 'Person' : 'People'}
-                        {peopleBreakdown.coTutors > 0 || peopleBreakdown.coStudents > 0 ? (
-                          <div className="text-xs text-gray-500 mt-1">
-                            {peopleBreakdown.coWorkers}💼 {peopleBreakdown.coTutors}👩‍🏫 {peopleBreakdown.coStudents}🎓
-                          </div>
-                        ) : null}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent side="bottom" className="w-auto">
-                      <PeopleSelector
-                        value={people}
-                        min={1}
-                        max={15}
-                        onChange={handlePeopleChange}
-                        showBreakdown={true}
-                        onBreakdownChange={handleBreakdownChange}
-                        storageKey="home-page-people-selector"
-                        enablePersistence={false}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-
-              {/* Row 2: Date Range */}
-              <DateTimeRangePicker
-                startDate={startDate}
-                endDate={endDate}
-                onStartDateChange={setStartDate}
-                onEndDateChange={setEndDate}
-                location="Kovan"
-                dateFormat="MMM d, yyyy h:mm aa"
-                placeholderStart="Start"
-                placeholderEnd="End"
-                className="flex-1"
-              />
-
-              {/* Row 3: Book Button */}
-              <div className="flex justify-center">
+              <div className='flex items-end justify-end'>
                 <Button
                   onClick={handleBookNow}
-                  className="bg-orange-500 text-white px-6 py-2 transition-colors duration-200"
                   disabled={loading}
-                >
-                  {loading ? 'Loading...' : 'Book Now →'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Mobile Layout */}
-            <div className="flex md:hidden flex-col space-y-4">
-              {/* Location */}
-              <div className="flex flex-col">
-                <label className="text-xs text-gray-500 uppercase mb-1 text-left">Location</label>
-                <div className="flex h-10 w-full items-center border-b border-gray-300 px-3 py-2 text-sm text-black">
-                  Kovan
-                </div>
-              </div>
-
-              {/* People */}
-              <div className="flex flex-col">
-                <label className="text-xs text-gray-500 uppercase mb-1 text-left">People</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="w-full text-black border-b border-gray-300 pb-1 text-left focus:outline-none"
-                    >
-                      {people} {people === 1 ? 'Person' : 'People'}
-                      {peopleBreakdown.coTutors > 0 || peopleBreakdown.coStudents > 0 ? (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {peopleBreakdown.coWorkers}💼 {peopleBreakdown.coTutors}👩‍🏫 {peopleBreakdown.coStudents}🎓
-                        </div>
-                      ) : null}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent side="bottom" className="w-auto">
-                    <PeopleSelector
-                      value={people}
-                      min={1}
-                      max={15}
-                      onChange={handlePeopleChange}
-                      showBreakdown={true}
-                      onBreakdownChange={handleBreakdownChange}
-                      storageKey="home-page-people-selector"
-                      enablePersistence={false}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Date Range */}
-              <DateTimeRangePicker
-                startDate={startDate}
-                endDate={endDate}
-                onStartDateChange={setStartDate}
-                onEndDateChange={setEndDate}
-                location="Kovan"
-                dateFormat="MMM d, yyyy h:mm aa"
-                placeholderStart="Start"
-                placeholderEnd="End"
-                className="flex-col space-y-3"
-              />
-
-              {/* Book Button */}
-              <div className="flex justify-center pt-2">
-                <Button
-                  onClick={handleBookNow}
-                  className="bg-orange-500 text-white w-full py-3 transition-colors duration-200"
-                  disabled={loading}
+                  className="bg-orange-500 text-white w-full lg:w-auto px-6 py-3 lg:py-2"
                 >
                   {loading ? 'Loading...' : 'Book Now →'}
                 </Button>
               </div>
             </div>
           </div>
+
 
           {/* Helper text for bookings */}
           {startDate && (
