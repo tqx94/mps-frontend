@@ -181,7 +181,7 @@ export default function PaymentStep({
         reference_number: isReschedule ? `RESCHEDULE_${currentBookingId}` : isExtension ? `EXTEND_${currentBookingId}` : `${currentBookingId}`,
         redirect_url: redirectUrl,
         // webhook: `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/hitpay/webhook`,
-        webhook: `https://productive-space-backend.vercel.app/hitpay/webhook`,
+        webhook: `https://mps-mu.vercel.app/hitpay/webhook`,
 
         payment_methods: [getPaymentMethodForAPI(selectedPaymentMethod)], // Array of strings
         bookingId: currentBookingId, // Use the created booking ID

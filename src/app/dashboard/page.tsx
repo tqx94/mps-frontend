@@ -162,7 +162,7 @@ export default function Dashboard() {
   // Load verification history
   const loadVerificationHistory = async (userId: string) => {
     try {
-      const response = await fetch(`https://productive-space-backend.vercel.app/api/verification-history/${userId}`)
+      const response = await fetch(`https://mps-mu.vercel.app/api/verification-history/${userId}`)
       const data = await response.json()
 
       if (data.success) {

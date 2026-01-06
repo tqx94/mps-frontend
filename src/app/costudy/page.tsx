@@ -98,7 +98,7 @@ export default function CoLearningPage() {
 
     try {
       setUserLoading(true)
-      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://productive-space-backend.vercel.app/api'
+      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://mps-mu.vercel.app/api'
       const response = await fetch(`${API_BASE_URL}/user/${user.id}`)
       
       if (response.ok) {

@@ -45,7 +45,7 @@ export interface AdminGenerateOpenLinkResponse {
     message?: string;
 }
 // API Base URL
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://productive-space-backend.vercel.app/api'
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://mps-mu.vercel.app/api'
 /**
  * Generate a secure access link to open the door
  * @param bookingRef - The booking reference

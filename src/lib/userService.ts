@@ -76,7 +76,7 @@ export interface UpdateUserPayload {
 import { authenticatedFetch } from './apiClient'
 
 // API Base URL
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://productive-space-backend.vercel.app/api'
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://mps-mu.vercel.app/api'
 
 // Helper function to handle API responses
 const handleResponse = async (response: Response): Promise<UserResponse> => {

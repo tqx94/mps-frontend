@@ -84,7 +84,7 @@ const PackageManagement: React.FC = () => {
   const fetchPackages = async () => {
     try {
       setLoading(true);
-      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://productive-space-backend.vercel.app/api';
+      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://mps-mu.vercel.app/api';
       
       // Build query parameters
       const params = new URLSearchParams();
@@ -166,7 +166,7 @@ const PackageManagement: React.FC = () => {
         hoursAllowed: parseInt(formData.hoursAllowed)
       };
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://productive-space-backend.vercel.app/api';
+      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://mps-mu.vercel.app/api';
       const url = editingPackage ? `${API_BASE_URL}/admin/packages/${editingPackage.id}` : `${API_BASE_URL}/admin/packages`;
       const method = editingPackage ? 'PUT' : 'POST';
 
@@ -227,7 +227,7 @@ const PackageManagement: React.FC = () => {
   // Handle delete
   const handleDelete = async (packageId: string, force: boolean = false) => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://productive-space-backend.vercel.app/api';
+      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://mps-mu.vercel.app/api';
       const url = force 
         ? `${API_BASE_URL}/admin/packages/${packageId}?force=true`
         : `${API_BASE_URL}/admin/packages/${packageId}`;
