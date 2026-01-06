@@ -252,17 +252,38 @@ export function EntitlementTabs({
   }, [userId]);
 
   // Load packages, promo codes, and credits when component mounts
+  // useEffect(() => {
+  //   if (userId) {
+  //     loadUserPackages();
+  //     if (mode === 'promo') {
+  //       loadAvailablePromoCodes();
+  //     } else if (mode === 'credit') {
+  //       loadUserCredits();
+  //     }
+  //   }
+  // }, [mode, userId, loadUserPackages, loadAvailablePromoCodes, loadUserCredits]);
+
   useEffect(() => {
     if (userId) {
       loadUserPackages();
-      if (mode === 'promo') {
-        loadAvailablePromoCodes();
-      } else if (mode === 'credit') {
-        loadUserCredits();
-      }
     }
-  }, [mode, userId, loadUserPackages, loadAvailablePromoCodes, loadUserCredits]);
+  }, [userId]);
 
+  
+  useEffect(() => {
+    if (userId && mode === 'promo') {
+      loadAvailablePromoCodes();
+    }
+  }, [mode, userId]);
+
+  
+
+  useEffect(() => {
+    if (userId && mode === 'credit') {
+      loadUserCredits();
+    }
+  }, [mode, userId]);
+  
   // Recalculate promo code discount when bookingAmount changes
   useEffect(() => {
     if (selectedPromoCode && bookingAmount > 0) {
@@ -1351,25 +1372,7 @@ const getRemainingPasses = (pkg: ApiUserPackage) => {
                         </Card>
                       )}
 
-                      {/* Credit Details */}
-                      {/* <div className="space-y-2">
-                        <Label className="text-sm font-medium">Credit Details</Label>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {userCredits.map((credit) => (
-                            <div key={credit.id} className="flex items-center justify-between p-2 bg-orange-50 border border-orange-200 rounded text-sm">
-                              <div>
-                                <span className="font-medium text-orange-900">${credit.amount.toFixed(2)}</span>
-                                <span className="text-orange-600 ml-2">
-                                  from {credit.Booking?.bookingRef || 'Refund'}
-                                </span>
-                              </div>
-                              <div className="text-xs text-orange-500">
-                                Expires: {new Date(credit.expiresat).toLocaleDateString()}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div> */}
+                    
                     </div>
                   )}
                 </div>
