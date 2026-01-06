@@ -149,6 +149,7 @@ export function useAuth() {
 
   useEffect(() => {
     let isMounted = true
+    let databaseUserFetched = false // Track if we've already fetched database user
 
     // Load initial data from storage
     const storedAuthUser = localStorage.getItem(STORAGE_KEYS.AUTH_USER)
@@ -158,6 +159,7 @@ export function useAuth() {
       try {
         setUser(JSON.parse(storedAuthUser))
         setDatabaseUser(JSON.parse(storedDatabaseUser))
+        databaseUserFetched = true // Mark as fetched since we have cached data
         // If we have cached data, set loading to false immediately
         setLoading(false)
       } catch (error) {
@@ -171,28 +173,37 @@ export function useAuth() {
         const { data: { session } } = await supabase.auth.getSession()
 
         if (session?.user && isMounted) {
-          try {
-            const dbUser = await fetchDatabaseUser(session.user)
-            // Check if mounted again after async operation
+          // Only fetch if we don't have cached database user
+          if (!databaseUserFetched) {
+            try {
+              const dbUser = await fetchDatabaseUser(session.user)
+              // Check if mounted again after async operation
+              if (isMounted) {
+                setUser(session.user)
+                setDatabaseUser(dbUser)
+                saveToStorage(session.user, dbUser)
+                databaseUserFetched = true
+              }
+            } catch (error: any) {
+              // If user is disabled, clear everything
+              if (error?.message === 'Account disabled') {
+                if (isMounted) {
+                  setUser(null)
+                  setDatabaseUser(null)
+                  saveToStorage(null, null)
+                  // Show toast notification (if available)
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('user-disabled'))
+                  }
+                }
+              } else {
+                console.error('Error fetching database user:', error)
+              }
+            }
+          } else {
+            // We have cached data, just update auth user if needed
             if (isMounted) {
               setUser(session.user)
-              setDatabaseUser(dbUser)
-              saveToStorage(session.user, dbUser)
-            }
-          } catch (error: any) {
-            // If user is disabled, clear everything
-            if (error?.message === 'Account disabled') {
-              if (isMounted) {
-                setUser(null)
-                setDatabaseUser(null)
-                saveToStorage(null, null)
-                // Show toast notification (if available)
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('user-disabled'))
-                }
-              }
-            } else {
-              console.error('Error fetching database user:', error)
             }
           }
         }
@@ -215,64 +226,67 @@ export function useAuth() {
         console.log('Auth state change:', event, session?.user?.id)
 
         if (session?.user) {
-          // For login events, try to fetch database user
-          if (event === 'SIGNED_IN') {
+          // Only fetch database user on SIGNED_IN or if we don't have it yet
+          // For TOKEN_REFRESHED and other routine events, use cached data
+          if (event === 'SIGNED_IN' || !databaseUserFetched) {
             try {
               const dbUser = await fetchDatabaseUser(session.user)
-              setUser(session.user)
-              setDatabaseUser(dbUser)
-              saveToStorage(session.user, dbUser)
+              if (isMounted) {
+                setUser(session.user)
+                setDatabaseUser(dbUser)
+                saveToStorage(session.user, dbUser)
+                databaseUserFetched = true
+              }
             } catch (error: any) {
               console.error('Error in auth state change:', error)
               // If user is disabled, clear everything
               if (error?.message === 'Account disabled') {
-                setUser(null)
-                setDatabaseUser(null)
-                saveToStorage(null, null)
-                // Show toast notification (if available)
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('user-disabled'))
+                if (isMounted) {
+                  setUser(null)
+                  setDatabaseUser(null)
+                  saveToStorage(null, null)
+                  databaseUserFetched = false
+                  // Show toast notification (if available)
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('user-disabled'))
+                  }
                 }
                 return
               }
               // Still set the user even if database fetch fails (for other errors)
-              setUser(session.user)
-              setDatabaseUser(createMockDatabaseUser(session.user))
-              saveToStorage(session.user, createMockDatabaseUser(session.user))
+              if (isMounted) {
+                setUser(session.user)
+                const mockUser = createMockDatabaseUser(session.user)
+                setDatabaseUser(mockUser)
+                saveToStorage(session.user, mockUser)
+                databaseUserFetched = true
+              }
             }
           } else {
-            // For other events, fetch database user to check disabled status
-            try {
-              const dbUser = await fetchDatabaseUser(session.user)
+            // For other events (TOKEN_REFRESHED, USER_UPDATED, etc.), just update auth user
+            // Use existing databaseUser from cache - NO API CALL!
+            if (isMounted) {
               setUser(session.user)
-              setDatabaseUser(dbUser)
-              saveToStorage(session.user, dbUser)
-            } catch (error: any) {
-              console.error('Error fetching user in auth state change:', error)
-              // If user is disabled, clear everything
-              if (error?.message === 'Account disabled') {
-                setUser(null)
-                setDatabaseUser(null)
-                saveToStorage(null, null)
-                return
-              }
-              // For other errors, use mock user
-              setUser(session.user)
-              setDatabaseUser(createMockDatabaseUser(session.user))
-              saveToStorage(session.user, createMockDatabaseUser(session.user))
+              // Keep existing databaseUser - don't fetch again
+              // This prevents unnecessary API calls on token refresh
             }
           }
         } else {
           console.log('No session, clearing user data immediately')
-          setUser(null)
-          setDatabaseUser(null)
-          saveToStorage(null, null)
-          // Force loading to false immediately for logout
-          setLoading(false)
+          if (isMounted) {
+            setUser(null)
+            setDatabaseUser(null)
+            saveToStorage(null, null)
+            databaseUserFetched = false
+            // Force loading to false immediately for logout
+            setLoading(false)
+          }
           return
         }
 
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     )
 
