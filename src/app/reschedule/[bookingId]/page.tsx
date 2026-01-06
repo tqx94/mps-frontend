@@ -420,6 +420,20 @@ export default function ReschedulePage() {
     return timeString >= openTime && timeString <= closeTime
   }
 
+  // Helper function to check if booking period overlaps with any closure period
+  const doesBookingOverlapWithClosure = (startDate: Date | null, endDate: Date | null): boolean => {
+    if (!startDate || !endDate) return false
+
+    return closureDates.some(closure => {
+      const closureStart = new Date(closure.startDate) // UTC -> local timezone
+      const closureEnd = new Date(closure.endDate) // UTC -> local timezone
+
+      // Check if booking period overlaps with closure period
+      // Overlap occurs when: booking starts before closure ends AND booking ends after closure starts
+      return startDate.getTime() < closureEnd.getTime() && endDate.getTime() > closureStart.getTime()
+    })
+  }
+
   // Helper function to get available end times based on start date
   const getAvailableEndTimes = (startDate: Date | null): Date[] => {
     if (!startDate) return [];
@@ -1352,7 +1366,11 @@ export default function ReschedulePage() {
                     {newStartDate && newEndDate && (
                       <Alert className={
                         (() => {
-                          // PRIORITY 1: Check if times are outside shop hours (highest priority - red)
+                          // PRIORITY 1: Check if booking overlaps with closure period (highest priority - red)
+                          if (doesBookingOverlapWithClosure(newStartDate, newEndDate)) {
+                            return "border-red-500 bg-red-50";
+                          }
+                          // PRIORITY 2: Check if times are outside shop hours (red)
                           const isStartTimeInvalid = !isTimeWithinShopHours(newStartDate);
                           const isEndTimeInvalid = !isTimeWithinShopHours(newEndDate);
                           if (isStartTimeInvalid || isEndTimeInvalid) {
@@ -1376,7 +1394,15 @@ export default function ReschedulePage() {
                         <AlertDescription>
                           <div>
                             {(() => {
-                              // PRIORITY 1: Check if times are outside shop hours (show this first)
+                              // PRIORITY 1: Check if booking overlaps with closure period (show this first)
+                              if (doesBookingOverlapWithClosure(newStartDate, newEndDate)) {
+                                return (
+                                  <span className="block mt-1 text-red-600 font-semibold">
+                                    ⚠ Unable to reschedule - This booking period overlaps with shop closure/vacation hours.
+                                  </span>
+                                );
+                              }
+                              // PRIORITY 2: Check if times are outside shop hours (show this second)
                               const isStartTimeInvalid = !isTimeWithinShopHours(newStartDate);
                               const isEndTimeInvalid = !isTimeWithinShopHours(newEndDate);
 
@@ -1388,7 +1414,7 @@ export default function ReschedulePage() {
                                 );
                               }
 
-                              // Other duration messages (only show if times are valid)
+                              // Other duration messages (only show if times are valid and no closure overlap)
                               return (
                                 <>
                                   New Duration: {((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)).toFixed(2)} hours
@@ -1608,6 +1634,8 @@ export default function ReschedulePage() {
                           checkingSeats ||
                           !newStartDate ||
                           !newEndDate ||
+                          // PRIORITY 1: Disable if booking overlaps with closure period
+                          (newStartDate && newEndDate && doesBookingOverlapWithClosure(newStartDate, newEndDate)) ||
                           // Validate that start time is within shop hours
                           (newStartDate && !isTimeWithinShopHours(newStartDate)) ||
                           // Validate that end time is within shop hours
