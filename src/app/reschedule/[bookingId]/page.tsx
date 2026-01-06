@@ -159,12 +159,12 @@ export default function ReschedulePage() {
     const isRescheduleReturn = searchParams.get('reschedule') === 'true'
     const status = searchParams.get('status')
     const paymentReference = searchParams.get('reference')
-    
+
     // If returning from payment (has reference and reschedule=true), show step 3 regardless of status
     if (isRescheduleReturn && paymentReference) {
       return 3 // Show confirmation page (will display error or success based on status)
     }
-    
+
     return step ? parseInt(step) : 1
   })
   const [submitting, setSubmitting] = useState(false)
@@ -233,12 +233,12 @@ export default function ReschedulePage() {
   const [paymentConfirmed, setPaymentConfirmed] = useState(false)
   const [paymentTotal, setPaymentTotal] = useState(0)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'payNow' | 'creditCard'>('payNow')
-  
+
   // Credits state
   const [creditAmount, setCreditAmount] = useState(() => {
     // Check if we're in the browser (not SSR)
     if (typeof window === 'undefined') return 0
-    
+
     // Only restore from localStorage if coming from payment return
     if (isRescheduleReturn && status === 'completed' && paymentReference) {
       const saved = localStorage.getItem(`reschedule_credit_${bookingId}`)
@@ -387,12 +387,12 @@ export default function ReschedulePage() {
           const isInClosure = closureDates.some(closure => {
             const closureStart = new Date(closure.startDate) // UTC -> local timezone
             const closureEnd = new Date(closure.endDate) // UTC -> local timezone
-            
+
             // Check if currentTime falls within the closure period
-            return time.getTime() >= closureStart.getTime() && 
-                   time.getTime() < closureEnd.getTime()
+            return time.getTime() >= closureStart.getTime() &&
+              time.getTime() < closureEnd.getTime()
           })
-          
+
           // Only add time if it's NOT in a closure period
           if (!isInClosure) {
             times.push(time);
@@ -408,22 +408,22 @@ export default function ReschedulePage() {
   const isTimeWithinShopHours = (date: Date): boolean => {
     const dayOfWeek = date.getDay()
     const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
-    
+
     if (!dayHours || operatingHours.length === 0) {
       return false // No shop hours for this day
     }
-    
+
     const timeString = date.toTimeString().split(' ')[0].substring(0, 5)
     const openTime = dayHours.openTime.substring(0, 5)
     const closeTime = dayHours.closeTime.substring(0, 5)
-    
+
     return timeString >= openTime && timeString <= closeTime
   }
 
   // Helper function to get available end times based on start date
   const getAvailableEndTimes = (startDate: Date | null): Date[] => {
     if (!startDate) return [];
-    
+
     const times = getAvailableTimes(startDate);
     if (!times.length) return times;
 
@@ -456,10 +456,10 @@ export default function ReschedulePage() {
     const now = new Date()
     const isToday = isSameDay(selectedDate, now)
     const dayOfWeek = selectedDate.getDay()
-    
+
     // Get shop hours for the selected day
     const dayHours = operatingHours.find(h => h.dayOfWeek === dayOfWeek && h.isActive)
-    
+
     // If no shop hours found
     if (!dayHours || operatingHours.length === 0) {
       if (isToday) {
@@ -469,12 +469,12 @@ export default function ReschedulePage() {
       defaultTime.setHours(9, 0, 0, 0)
       return defaultTime
     }
-    
+
     // Parse shop open time
     const [openHours, openMinutes] = dayHours.openTime.split(':').map(Number)
     const openTime = new Date(selectedDate)
     openTime.setHours(openHours, openMinutes, 0, 0)
-    
+
     if (isToday) {
       const currentRounded = roundUpToNext15Minutes(now)
       if (currentRounded < openTime) {
@@ -489,10 +489,10 @@ export default function ReschedulePage() {
   // Handler for when user clicks on calendar date
   const handleDateSelect = (date: Date | null) => {
     if (!date) return
-    
+
     const optimalTime = getOptimalStartTime(date)
     setNewStartDate(optimalTime)
-    
+
     // Auto-set end date based on original duration
     if (originalDuration > 0) {
       const calculatedEndDate = new Date(optimalTime.getTime() + (originalDuration * 60 * 60 * 1000))
@@ -512,23 +512,23 @@ export default function ReschedulePage() {
     const minutes = time.getMinutes()
     // Only allow :00, :15, :30, :45
     if (minutes % 15 !== 0) return false
-    
+
     // Get current time
     const now = new Date()
-    
+
     // If the selected date is today, only allow times after current time
     if (newStartDate) {
-      const selectedDateIsToday = 
+      const selectedDateIsToday =
         newStartDate.getFullYear() === now.getFullYear() &&
         newStartDate.getMonth() === now.getMonth() &&
         newStartDate.getDate() === now.getDate()
-      
+
       if (selectedDateIsToday) {
         // Only allow times after current time (on same day)
         return time.getTime() > now.getTime()
       }
     }
-    
+
     // If selected date is a different day (future), allow all times
     return true
   }
@@ -634,10 +634,10 @@ export default function ReschedulePage() {
       // Handle failed/cancelled payments
       if (isRescheduleReturn && status && status !== 'completed') {
         console.log('❌ Payment not completed. Status:', status)
-        
+
         // Clean up any saved credit data
         localStorage.removeItem(`reschedule_credit_${bookingId}`)
-        
+
         // Set error message based on status
         const errorMessages: Record<string, string> = {
           'canceled': 'Payment was cancelled. Your booking has not been rescheduled.',
@@ -645,13 +645,13 @@ export default function ReschedulePage() {
           'failed': 'Payment failed. Your booking has not been rescheduled.',
           'pending': 'Payment is still pending. Please wait or contact support.',
         }
-        
+
         setPaymentError(errorMessages[status] || "Payment was not completed. Your booking has not been rescheduled.")
         setCurrentStep(3) // Show step 3 with error
         setApiLoading(false)
         return
       }
-      
+
       if (isRescheduleReturn && status === 'completed' && paymentReference) {
         // Check if already processed (prevent double API calls)
         const processedKey = `reschedule_processed_${bookingId}_${paymentReference}`
@@ -662,15 +662,15 @@ export default function ReschedulePage() {
           setCurrentStep(3)
           return
         }
-        
+
         try {
           setApiLoading(true) // Show loading during confirmation
           console.log('🔄 Processing payment confirmation for reschedule:', { paymentReference, status, bookingId })
-          
+
           // Get creditAmount from localStorage (saved before payment)
           const savedCreditAmount = parseFloat(localStorage.getItem(`reschedule_credit_${bookingId}`) || '0')
           console.log('💳 Retrieved credit amount from localStorage:', savedCreditAmount)
-          
+
           // Get reschedule data from URL parameters + creditAmount from localStorage
           const rescheduleDataFromUrl = {
             newStartAt: urlNewStartAt!,
@@ -681,9 +681,9 @@ export default function ReschedulePage() {
             originalEndAt: urlOriginalEndAt!,
             creditAmount: savedCreditAmount // Use creditAmount from localStorage!
           }
-          
+
           console.log('💳 Sending reschedule data with credits:', rescheduleDataFromUrl)
-          
+
           // Call backend to confirm reschedule payment
           // Use bookingId to lookup payment by bookingRef (same as extend)
           const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/reschedule/confirm-payment`, {
@@ -699,16 +699,16 @@ export default function ReschedulePage() {
             const result = await response.json()
             if (result.success) {
               console.log('✅ Reschedule confirmed successfully:', result)
-              
+
               // Mark as processed (prevent duplicate calls)
               localStorage.setItem(processedKey, 'true')
               // Clean up credit amount from localStorage
               localStorage.removeItem(`reschedule_credit_${bookingId}`)
-              
+
               setRescheduleConfirmed(true)
               setPaymentConfirmed(true)
               setCurrentStep(3)
-              
+
               // Update booking with confirmed data
               if (result.booking) {
                 setBooking(result.booking)
@@ -720,7 +720,7 @@ export default function ReschedulePage() {
                   }
                 })
               }
-              
+
               toast({
                 title: "Reschedule Confirmed",
                 description: "Your booking has been rescheduled successfully",
@@ -847,7 +847,7 @@ export default function ReschedulePage() {
           console.log('🔍 Seat availability response:', data)
           setAvailableSeats(data.availableSeats || [])
           setHasTutorBooking(data.hasTutorBooking || false)
-          
+
           // Filter out current booking's seats from occupied seats
           // Backend should exclude them, but double-check here
           const otherBookedSeats = (data.bookedSeats || []).filter(
@@ -886,7 +886,7 @@ export default function ReschedulePage() {
 
           // Check if current booking seats conflict with other bookings
           const conflictingCurrentSeats = data.conflictingCurrentSeats || []
-          
+
           const allConflictingSeats = [...new Set([...conflictingSeats, ...additionalConflicts, ...conflictingCurrentSeats])]
 
           console.log('🔍 Conflicting seats:', conflictingSeats)
@@ -920,11 +920,7 @@ export default function ReschedulePage() {
   useEffect(() => {
     const isTutorBooking = booking && (booking.tutors > 0 || booking.memberType === 'TUTOR')
     if (isTutorBooking && hasTutorBooking && newStartDate && newEndDate) {
-      toast({
-        title: "Booking Not Available",
-        description: "This slot has been booked by another tutor. Only non-teaching slots can happen during this timing. Please select member/student. For other questions, please whatsapp admin.",
-        variant: "destructive",
-      })
+     
       // Clear selected seats
       setSelectedSeats([])
     }
@@ -943,7 +939,7 @@ export default function ReschedulePage() {
     // Check duration constraints
     const newDuration = (newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)
     const durationIncrease = newDuration - originalDuration
-    
+
     // Check if duration decreased
     if (newDuration < originalDuration) {
       toast({
@@ -1025,7 +1021,7 @@ export default function ReschedulePage() {
     // Payment completed - now update booking with new schedule
     const dataToUse = customRescheduleData || rescheduleData
     setApiLoading(true)
-    
+
     try {
       if (paymentId && dataToUse) {
         console.log('🔍 Payment completed, updating booking with new schedule...')
@@ -1035,9 +1031,9 @@ export default function ReschedulePage() {
           ...dataToUse,
           creditAmount: creditAmount // Make sure creditAmount is included
         };
-        
+
         console.log('💳 Sending reschedule data with credits:', rescheduleDataWithCredits);
-        
+
         const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/reschedule/confirm-payment`, {
           method: 'POST',
           body: JSON.stringify({
@@ -1058,7 +1054,7 @@ export default function ReschedulePage() {
           // Update local booking state with confirmed changes
           if (result.booking) {
             setBooking(result.booking)
-            
+
             // Set confirmation data for display
             setConfirmationData({
               booking: result.booking,
@@ -1086,7 +1082,7 @@ export default function ReschedulePage() {
           rescheduleCost: dataToUse?.additionalCost || dataToUse?.costDifference || 0,
           creditAmount: dataToUse?.creditAmount || 0
         })
-        
+
         const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/reschedule/booking/${bookingId}`, {
           method: 'PUT',
           body: JSON.stringify({
@@ -1114,7 +1110,7 @@ export default function ReschedulePage() {
               startAt: result.booking.startAt,
               endAt: result.booking.endAt
             })
-            
+
             // Set confirmation data for display
             setConfirmationData({
               booking: result.booking,
@@ -1162,18 +1158,11 @@ export default function ReschedulePage() {
     // Check tutor booking conflict
     const isTutorBooking = booking && (booking.tutors > 0 || booking.memberType === 'TUTOR')
     if (isTutorBooking && hasTutorBooking) {
-      toast({
-        title: "Booking Not Available",
-        description: "This slot has been booked by another tutor. Only non-teaching slots can happen during this timing. Please select member/student. For other questions, please whatsapp admin.",
-        variant: "destructive",
-      })
+    
       return
     }
 
-    console.log('🔄 Starting reschedule process for booking:', bookingId)
-    console.log('Reschedule data:', rescheduleData)
-    console.log('Cost difference:', costDifference)
-    console.log('Payment confirmed:', paymentConfirmed)
+
 
     setSubmitting(true)
 
@@ -1198,9 +1187,9 @@ export default function ReschedulePage() {
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/reschedule/booking/${bookingId}`, {
         method: 'PUT',
         body: JSON.stringify({
-            startAt: rescheduleData.newStartAt,
-            endAt: rescheduleData.newEndAt,
-            seatNumbers: rescheduleData.seatNumbers,
+          startAt: rescheduleData.newStartAt,
+          endAt: rescheduleData.newEndAt,
+          seatNumbers: rescheduleData.seatNumbers,
           rescheduleCost: costDifference
         })
       })
@@ -1239,6 +1228,18 @@ export default function ReschedulePage() {
     }
   }
 
+  const showTutorBookingError =
+    booking &&
+    (booking.tutors > 0 || booking.memberType === 'TUTOR') &&
+    hasTutorBooking &&
+    newStartDate &&
+    newEndDate &&
+    !checkingSeats
+
+  const showSeatSelectionError =
+    requiresSeatSelection && !checkingSeats
+
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1263,715 +1264,729 @@ export default function ReschedulePage() {
 
   return (
     <>
-    <Navbar/>
+      <Navbar />
       <div className="min-h-screen bg-gray-50 pt-24 sm:pt-24">
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header */}
-        <div className="">
-          <Button
-            variant="ghost"
-            onClick={() => router.push('/dashboard')}
-            className="mr-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Reschedule Booking</h1>
-            <p className="text-sm sm:text-base text-gray-600">Reference: {booking.bookingRef}</p>
-          </div>
-        </div>
-
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-6 sm:mb-8">
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <div className={`flex items-center ${currentStep >= 1 ? 'text-orange-600' : 'text-gray-400'}`}>
-              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${currentStep >= 1 ? 'bg-orange-600 text-white' : 'bg-gray-200'}`}>
-                1
-              </div>
-              <span className="ml-2 font-medium hidden sm:inline">Select Time</span>
-              <span className="ml-1 font-medium sm:hidden">Time</span>
-            </div>
-            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
-            <div className={`flex items-center ${currentStep >= 2 ? 'text-orange-600' : 'text-gray-400'}`}>
-              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${currentStep >= 2 ? 'bg-orange-600 text-white' : 'bg-gray-200'}`}>
-                2
-              </div>
-              <span className="ml-2 font-medium hidden sm:inline">Payment</span>
-              <span className="ml-1 font-medium sm:hidden">Pay</span>
-            </div>
-            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
-            <div className={`flex items-center ${currentStep >= 3 ? 'text-orange-600' : 'text-gray-400'}`}>
-              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${currentStep >= 3 ? 'bg-orange-600 text-white' : 'bg-gray-200'}`}>
-                3
-              </div>
-              <span className="ml-2 font-medium hidden sm:inline">Confirmation</span>
-              <span className="ml-1 font-medium sm:hidden">Confirm</span>
+          {/* Header */}
+          <div className="">
+            <Button
+              variant="ghost"
+              onClick={() => router.push('/dashboard')}
+              className="mr-4"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Reschedule Booking</h1>
+              <p className="text-sm sm:text-base text-gray-600">Reference: {booking.bookingRef}</p>
             </div>
           </div>
-        </div>
 
-        {/* Step 1: Time Selection */}
-        {currentStep === 1 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            {/* Current Booking Info */}
+          {/* Progress Steps */}
+          <div className="flex items-center justify-center mb-6 sm:mb-8">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className={`flex items-center ${currentStep >= 1 ? 'text-orange-600' : 'text-gray-400'}`}>
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${currentStep >= 1 ? 'bg-orange-600 text-white' : 'bg-gray-200'}`}>
+                  1
+                </div>
+                <span className="ml-2 font-medium hidden sm:inline">Select Time</span>
+                <span className="ml-1 font-medium sm:hidden">Time</span>
+              </div>
+              <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+              <div className={`flex items-center ${currentStep >= 2 ? 'text-orange-600' : 'text-gray-400'}`}>
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${currentStep >= 2 ? 'bg-orange-600 text-white' : 'bg-gray-200'}`}>
+                  2
+                </div>
+                <span className="ml-2 font-medium hidden sm:inline">Payment</span>
+                <span className="ml-1 font-medium sm:hidden">Pay</span>
+              </div>
+              <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+              <div className={`flex items-center ${currentStep >= 3 ? 'text-orange-600' : 'text-gray-400'}`}>
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${currentStep >= 3 ? 'bg-orange-600 text-white' : 'bg-gray-200'}`}>
+                  3
+                </div>
+                <span className="ml-2 font-medium hidden sm:inline">Confirmation</span>
+                <span className="ml-1 font-medium sm:hidden">Confirm</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 1: Time Selection */}
+          {currentStep === 1 && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+              {/* Current Booking Info */}
 
 
-            {/* New Time Selection */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calendar className="h-5 w-5 mr-2" />
-                    Select New Time
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 sm:space-y-6">
-                  {/* Date Range - Using DateTimeRangePicker component */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <DateTimeRangePicker
-                      startDate={newStartDate}
-                      endDate={newEndDate}
-                      onStartDateChange={setNewStartDate}
-                      onEndDateChange={setNewEndDate}
-                      location="Kovan"
-                      dateFormat="MMM d, h:mm aa"
-                      placeholderStart="Select start time"
-                      placeholderEnd="Select end time"
-                      showLoader={true}
-                      fullWidth={true}
-                      className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
-                    />
-                  </div>
+              {/* New Time Selection */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Calendar className="h-5 w-5 mr-2" />
+                      Select New Time
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 sm:space-y-6">
+                    {/* Date Range - Using DateTimeRangePicker component */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                      <DateTimeRangePicker
+                        startDate={newStartDate}
+                        endDate={newEndDate}
+                        onStartDateChange={setNewStartDate}
+                        onEndDateChange={setNewEndDate}
+                        location="Kovan"
+                        dateFormat="MMM d, h:mm aa"
+                        placeholderStart="Select start time"
+                        placeholderEnd="Select end time"
+                        showLoader={true}
+                        fullWidth={true}
+                        className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
+                      />
+                    </div>
 
-                
 
-                  {/* Duration Info usama*/}
-                  {newStartDate && newEndDate && (
-                    <Alert className={
-                      (() => {
-                        // PRIORITY 1: Check if times are outside shop hours (highest priority - red)
-                        const isStartTimeInvalid = !isTimeWithinShopHours(newStartDate);
-                        const isEndTimeInvalid = !isTimeWithinShopHours(newEndDate);
-                        if (isStartTimeInvalid || isEndTimeInvalid) {
-                          return "border-red-500 bg-red-50";
-                        }
-                        
-                        const durationIncrease = ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration;
-                        // Red if duration decreased OR if increased but less than 1 hour (partial increase)
-                        if (durationIncrease < 0 || (durationIncrease > 0 && durationIncrease < 1)) {
-                          return "border-red-500 bg-red-50";
-                        }
-                        // Green if duration is exactly same (just date/time change)
-                        if (durationIncrease === 0) {
-                          return "border-green-500 bg-green-50";
-                        }
-                        // Normal if duration increased by 1 hour or more
-                        return "";
-                      })()
-                    }>
-                      <Clock className="h-4 w-4" />
-                      <AlertDescription>
-                        <div>
-                          {(() => {
-                            // PRIORITY 1: Check if times are outside shop hours (show this first)
-                            const isStartTimeInvalid = !isTimeWithinShopHours(newStartDate);
-                            const isEndTimeInvalid = !isTimeWithinShopHours(newEndDate);
-                            
-                            if (isStartTimeInvalid || isEndTimeInvalid) {
+
+                    {/* Duration Info usama*/}
+                    {newStartDate && newEndDate && (
+                      <Alert className={
+                        (() => {
+                          // PRIORITY 1: Check if times are outside shop hours (highest priority - red)
+                          const isStartTimeInvalid = !isTimeWithinShopHours(newStartDate);
+                          const isEndTimeInvalid = !isTimeWithinShopHours(newEndDate);
+                          if (isStartTimeInvalid || isEndTimeInvalid) {
+                            return "border-red-500 bg-red-50";
+                          }
+
+                          const durationIncrease = ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration;
+                          // Red if duration decreased OR if increased but less than 1 hour (partial increase)
+                          if (durationIncrease < 0 || (durationIncrease > 0 && durationIncrease < 1)) {
+                            return "border-red-500 bg-red-50";
+                          }
+                          // Green if duration is exactly same (just date/time change)
+                          if (durationIncrease === 0) {
+                            return "border-green-500 bg-green-50";
+                          }
+                          // Normal if duration increased by 1 hour or more
+                          return "";
+                        })()
+                      }>
+                        <Clock className="h-4 w-4" />
+                        <AlertDescription>
+                          <div>
+                            {(() => {
+                              // PRIORITY 1: Check if times are outside shop hours (show this first)
+                              const isStartTimeInvalid = !isTimeWithinShopHours(newStartDate);
+                              const isEndTimeInvalid = !isTimeWithinShopHours(newEndDate);
+
+                              if (isStartTimeInvalid || isEndTimeInvalid) {
+                                return (
+                                  <span className="block mt-1 text-red-600 font-semibold">
+                                    ⚠ Unable to book this slot as the shop is closed in this timeslot.
+                                  </span>
+                                );
+                              }
+
+                              // Other duration messages (only show if times are valid)
                               return (
-                                <span className="block mt-1 text-red-600 font-semibold">
-                                  ⚠ Unable to book this slot as the shop is closed in this timeslot.
-                                </span>
+                                <>
+                                  New Duration: {((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)).toFixed(2)} hours
+                                  <span className="block mt-1 text-gray-600 text-sm">
+                                    Original: {originalDuration.toFixed(2)} hours | Change: {(((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration).toFixed(2)} hours
+                                  </span>
+                                  {(() => {
+                                    const durationIncrease = ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration;
+                                    if (durationIncrease === 0) {
+                                      return (
+                                        <span className="block mt-1 text-green-600">
+                                          ✓ Same duration - No additional cost
+                                        </span>
+                                      );
+                                    }
+                                    if (durationIncrease > 0 && durationIncrease < 1) {
+                                      return (
+                                        <span className="block mt-1 text-red-600">
+                                          ⚠ Minimum increase is 1 hour. Keep same duration or increase by at least 1 hour.
+                                        </span>
+                                      );
+                                    }
+                                    if (costDifference > 0) {
+                                      return (
+                                        <span className="block mt-1 text-orange-600">
+                                          Additional cost: SGD ${costDifference.toFixed(2)}
+                                        </span>
+                                      );
+                                    }
+                                    if (costDifference < 0) {
+                                      return (
+                                        <span className="block mt-1 text-red-600">
+                                          New duration cannot be lesser than original duration. Please cancel and rebook
+                                        </span>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                </>
                               );
-                            }
-                            
-                            // Other duration messages (only show if times are valid)
-                            return (
-                              <>
-                                New Duration: {((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)).toFixed(2)} hours
-                                <span className="block mt-1 text-gray-600 text-sm">
-                                  Original: {originalDuration.toFixed(2)} hours | Change: {(((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration).toFixed(2)} hours
-                                </span>
-                                {(() => {
-                                  const durationIncrease = ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration;
-                                  if (durationIncrease === 0) {
-                                    return (
-                                      <span className="block mt-1 text-green-600">
-                                        ✓ Same duration - No additional cost
-                                      </span>
-                                    );
-                                  }
-                                  if (durationIncrease > 0 && durationIncrease < 1) {
-                                    return (
-                                      <span className="block mt-1 text-red-600">
-                                        ⚠ Minimum increase is 1 hour. Keep same duration or increase by at least 1 hour.
-                                      </span>
-                                    );
-                                  }
-                                  if (costDifference > 0) {
-                                    return (
-                                      <span className="block mt-1 text-orange-600">
-                                        Additional cost: SGD ${costDifference.toFixed(2)}
-                                      </span>
-                                    );
-                                  }
-                                  if (costDifference < 0) {
-                                    return (
-                                      <span className="block mt-1 text-red-600">
-                                        New duration cannot be lesser than original duration. Please cancel and rebook
-                                      </span>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-  {/* Minimum Duration Increase Notice */}
-  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                    Rescheduling requires at least 1 hour.
-                      </AlertDescription>
-                  </Alert>
-                  {/* Seat Availability Status */}
-                  {checkingSeats && (
-                    <div className="flex items-center text-sm text-orange-600">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Checking seat availability...
-                    </div>
-                  )}
-   <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                      Reschedule can only be done once.
-                      </AlertDescription>
-                    </Alert>
-                  {requiresSeatSelection && !checkingSeats && (
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        Your original seats are not available for the new time. Please select different seats.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {!requiresSeatSelection && !checkingSeats && newStartDate && newEndDate && (
-                    <Alert>
-                      <CheckCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        Your original seats are available for the new time.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* No Seats Available Message */}
-                  {!checkingSeats && newStartDate && newEndDate && availableSeats.length === 0 && (
-                    <Alert className="border-red-500 bg-red-50">
-                      <AlertTriangle className="h-4 w-4 text-red-600" />
-                      <AlertDescription className="text-red-700">
-                        There is not enough seats for your current timeslot. Please change another timeslot.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* Seat Selection */}
-                  {!checkingSeats && newStartDate && newEndDate && availableSeats.length > 0 && (
-                    <div>
-                      <Label>Select Seats for New Time</Label>
-                      <p className="text-sm text-gray-600 mb-3">
-                        Choose {booking.pax} seat{booking.pax > 1 ? 's' : ''} for the new time.
-                        <span className="ml-2 text-blue-600">
-                          ({availableSeats.length} seats available)
-                        </span>
-                      </p>
-
-                      {/* SeatPicker Container with proper constraints */}
-                      <div className="w-full max-w-full overflow-hidden">
-                        <div className="border rounded-lg p-4 bg-gray-50">
-                          <SeatPicker
-                            layout={DEMO_LAYOUT}
-                            tables={DEMO_TABLES}
-                            labels={DEMO_LABELS}
-                            bookedSeats={[...otherBookedSeats, ...conflictingCurrentSeats]}
-                            overlays={OVERLAYS}
-                            maxSeats={booking.pax}
-                            onSelectionChange={handleSeatSelectionChange}
-                            initialSelectedSeats={selectedSeats}
-                            disabled={booking && (booking.tutors > 0 || booking.memberType === 'TUTOR') && hasTutorBooking}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-center mt-2">
-                        <p className="text-sm text-gray-600">
-                          Selected: {selectedSeats.join(', ') || 'none'}
-                        </p>
-                        {selectedSeats.length !== booking.pax && (
-                          <p className="text-sm text-orange-600">
-                            {selectedSeats.length < booking.pax
-                              ? `Please select ${booking.pax - selectedSeats.length} more seat${booking.pax - selectedSeats.length !== 1 ? 's' : ''}`
-                              : `Please deselect ${selectedSeats.length - booking.pax} seat${selectedSeats.length - booking.pax !== 1 ? 's' : ''}`
-                            }
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Credit Selection - Show in Step 1 if there's additional cost */}
-                  {costDifference > 0 && user?.id && (
-                    <div className="border-t pt-4 mt-6">
-                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-                        <div className="space-y-1 text-sm text-orange-700">
-                          <div className="flex justify-between">
-                            <span>Additional cost:</span>
-                            <span className="font-medium">${costDifference.toFixed(2)}</span>
+                            })()}
                           </div>
-                          {creditAmount > 0 && (
-                            <>
-                              <div className="flex justify-between text-green-700">
-                                <span>Credits applied:</span>
-                                <span className="font-medium">-${creditAmount.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between font-bold text-orange-800 pt-2 border-t border-orange-300">
-                                <span>Amount to pay:</span>
-                                <span>${finalCost.toFixed(2)}</span>
-                              </div>
-                            </>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {/* Minimum Duration Increase Notice */}
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Rescheduling requires at least 1 hour.
+                      </AlertDescription>
+                    </Alert>
+                    {/* Seat Availability Status */}
+                    {checkingSeats && (
+                      <div className="flex items-center text-sm text-orange-600">
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Checking seat availability...
+                      </div>
+                    )}
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Reschedule can only be done once.
+                      </AlertDescription>
+                    </Alert>
+                    {/* Tutor Booking Conflict - Priority Error */}
+
+
+
+
+                    {showTutorBookingError ? (
+                      <Alert className="border-red-500 bg-red-50">
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                        <AlertDescription className="text-red-700">
+                          This slot has been booked by another tutor. Only non-teaching slots can happen during this timing.
+                          For other questions, please WhatsApp admin.
+                        </AlertDescription>
+                      </Alert>
+                    ) : showSeatSelectionError ? (
+                      <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          Your original seats are not available for the new time. Please select different seats.
+                        </AlertDescription>
+                      </Alert>
+                    ) : null}
+
+
+                    {!requiresSeatSelection && !checkingSeats && newStartDate && newEndDate && (
+                      <Alert>
+                        <CheckCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          Your original seats are available for the new time.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* No Seats Available Message */}
+                    {!checkingSeats && newStartDate && newEndDate && availableSeats.length === 0 && (
+                      <Alert className="border-red-500 bg-red-50">
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                        <AlertDescription className="text-red-700">
+                          There is not enough seats for your current timeslot. Please change another timeslot.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Seat Selection */}
+                    {!checkingSeats && newStartDate && newEndDate && availableSeats.length > 0 && (
+                      <div>
+                        <Label>Select Seats for New Time</Label>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Choose {booking.pax} seat{booking.pax > 1 ? 's' : ''} for the new time.
+                          <span className="ml-2 text-blue-600">
+                            ({availableSeats.length} seats available)
+                          </span>
+                        </p>
+
+                        {/* SeatPicker Container with proper constraints */}
+                        <div className="w-full max-w-full overflow-hidden">
+                          <div className="border rounded-lg p-4 bg-gray-50">
+                            <SeatPicker
+                              layout={DEMO_LAYOUT}
+                              tables={DEMO_TABLES}
+                              labels={DEMO_LABELS}
+                              bookedSeats={[...otherBookedSeats, ...conflictingCurrentSeats]}
+                              overlays={OVERLAYS}
+                              maxSeats={booking.pax}
+                              onSelectionChange={handleSeatSelectionChange}
+                              initialSelectedSeats={selectedSeats}
+                              disabled={booking && (booking.tutors > 0 || booking.memberType === 'TUTOR') && hasTutorBooking}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center mt-2">
+                          <p className="text-sm text-gray-600">
+                            Selected: {selectedSeats.join(', ') || 'none'}
+                          </p>
+                          {selectedSeats.length !== booking.pax && (
+                            <p className="text-sm text-orange-600">
+                              {selectedSeats.length < booking.pax
+                                ? `Please select ${booking.pax - selectedSeats.length} more seat${booking.pax - selectedSeats.length !== 1 ? 's' : ''}`
+                                : `Please deselect ${selectedSeats.length - booking.pax} seat${selectedSeats.length - booking.pax !== 1 ? 's' : ''}`
+                              }
+                            </p>
                           )}
                         </div>
                       </div>
-                      <EntitlementTabs
-                        mode="credit"
-                        onChange={(data) => {
-                          console.log('Credit data changed:', data)
-                          if (data && data.type === 'credit' && data.creditAmount !== undefined) {
-                            setCreditAmount(data.creditAmount)
-                            // Save to localStorage for payment return
-                            localStorage.setItem(`reschedule_credit_${bookingId}`, data.creditAmount.toString())
-                            console.log('💾 Saved credit amount to localStorage:', data.creditAmount)
-                          }
-                        }}
-                        onModeChange={() => {}} // Not needed for reschedule
-                        userId={user.id}
-                        bookingAmount={costDifference}
-                        bookingDuration={newStartDate && newEndDate ? {
-                          startAt: newStartDate.toISOString(),
-                          endAt: newEndDate.toISOString(),
-                          durationHours: (newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)
-                        } : undefined}
-                        userRole={booking?.memberType || 'MEMBER'}
-                        locationPrice={booking?.memberType === 'STUDENT' ? 4.00 : booking?.memberType === 'TUTOR' ? 6.00 : 5.00}
-                        totalPeople={booking?.pax || 1}
-                        showOnlyCredit={true}
-                      />
-                    </div>
-                  )}
+                    )}
 
-                  {/* Submit Button */}
-                  <div className="flex justify-end space-x-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push('/dashboard')}
-                      disabled={submitting}
-                    >
-                      Cancel
-                    </Button>
-
-                    <Button
-                      onClick={handleStep1Submit}
-                      disabled={
-                        submitting ||
-                        apiLoading ||
-                        checkingSeats ||
-                        !newStartDate ||
-                        !newEndDate ||
-                        // Validate that start time is within shop hours
-                        (newStartDate && !isTimeWithinShopHours(newStartDate)) ||
-                        // Validate that end time is within shop hours
-                        (newEndDate && !isTimeWithinShopHours(newEndDate)) ||
-                        (requiresSeatSelection && selectedSeats.length !== booking.pax) ||
-                        costDifference < 0 ||
-                        // Disable if times haven't changed from original
-                        (newStartDate?.getTime() === originalStartDate?.getTime() && 
-                         newEndDate?.getTime() === originalEndDate?.getTime()) ||
-                        // Disable if duration decreased
-                        (newStartDate && newEndDate && 
-                         ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) < originalDuration) ||
-                        // Disable if increased but less than 1 hour (partial increase not allowed)
-                        // Allow if duration is same (0 increase) - just date/time change
-                        (newStartDate && newEndDate && 
-                         (() => {
-                           const durationIncrease = ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration;
-                           return durationIncrease > 0 && durationIncrease < 1;
-                         })())
-                      }
-                      className="bg-orange-600 hover:bg-orange-700"
-                    >
-                      {submitting || apiLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {finalCost > 0 ? 'Processing...' : 'Confirming Reschedule...'}
-                        </>
-                      ) : (
-                        finalCost > 0 ? 'Continue to Payment' : 'Confirm Reschedule'
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            <div className="lg:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calendar className="h-5 w-5 mr-2" />
-                    Current Booking
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>{booking.location}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>{formatSingaporeDate(originalStartDate!)} - {formatSingaporeDate(originalEndDate!)}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Users className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>
-                      {[
-                        booking.students > 0 && `${booking.students} Student${booking.students > 1 ? 's' : ''}`,
-                        booking.members > 0 && `${booking.members} Member${booking.members > 1 ? 's' : ''}`,
-                        booking.tutors > 0 && `${booking.tutors} Tutor${booking.tutors > 1 ? 's' : ''}`
-                      ].filter(Boolean).join(', ') || `${booking.pax} people`}
-                    </span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="text-sm text-gray-500">Seats: {booking.seatNumbers?.join(', ') || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="text-sm text-gray-500">Duration: {originalDuration.toFixed(1)} hours</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Payment */}
-        {currentStep === 2 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            {/* Payment Form */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <CreditCard className="h-5 w-5 mr-2" />
-                    Payment Required
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-
-                  <PaymentStep
-                    subtotal={costDifference}
-                    total={finalCost}
-                    discountAmount={creditAmount}
-                    appliedVoucher={null}
-                    selectedPackage={undefined}
-                    customer={{
-                      name: userInfo.name || booking?.bookedForEmails?.[0]?.split('@')[0] || 'User',
-                      email: userInfo.email || booking?.bookedForEmails?.[0] || 'user@example.com',
-                      phone: userInfo.phone || booking?.phone || ''
-                    }}
-                    bookingId={bookingId}
-                    onBack={() => {
-                      setCurrentStep(1)
-                      updateStepInURL(1)
-                    }}
-                    onComplete={handlePaymentComplete}
-                    onPaymentMethodChange={handlePaymentMethodChange}
-                    onCreateBooking={async () => {
-                      // For reschedule, don't update booking before payment
-                      // Just return bookingId so payment can be created
-                      // Booking will be updated AFTER payment is confirmed
-                      console.log('💳 Creating payment for reschedule, booking will update after payment confirmation')
-                      return bookingId
-                    }}
-                    onBookingCreated={(bookingId) => {
-                      console.log('Reschedule payment initiated for booking:', bookingId)
-                    }}
-                    isReschedule={true}
-                    rescheduleData={rescheduleData ? {
-                      originalStartAt: originalStartDate!.toISOString(),
-                      originalEndAt: originalEndDate!.toISOString(),
-                      newStartAt: rescheduleData.newStartAt,
-                      newEndAt: rescheduleData.newEndAt,
-                      seatNumbers: rescheduleData.seatNumbers,
-                      additionalHours: (rescheduleData.newDuration - rescheduleData.originalDuration),
-                      additionalCost: costDifference,
-                      creditAmount: creditAmount
-                    } : undefined}
-                    isLoading={apiLoading}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-            {/* Reschedule Summary */}
-            <div className="lg:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calendar className="h-5 w-5 mr-2" />
-                    Reschedule Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center">
-                    <span className="text-sm font-medium text-gray-800">Booking Reference:</span>
-                    <span className="ml-2 text-sm text-gray-600">{booking.bookingRef}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-2 text-gray-500" />
-                    <span className="text-sm">{booking.location}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Users className="h-4 w-4 mr-2 text-gray-500" />
-                    <span className="text-sm">
-                      {[
-                        booking.students > 0 && `${booking.students} Student${booking.students > 1 ? 's' : ''}`,
-                        booking.members > 0 && `${booking.members} Member${booking.members > 1 ? 's' : ''}`,
-                        booking.tutors > 0 && `${booking.tutors} Tutor${booking.tutors > 1 ? 's' : ''}`
-                      ].filter(Boolean).join(', ') || `${booking.pax} people`}
-                    </span>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <div className="space-y-2">
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-800">Original Duration:</span>
-                        <span className="ml-2 text-gray-600">{originalDuration.toFixed(1)} hours</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-800">New Duration:</span>
-                        <span className="ml-2 text-gray-600">{((newEndDate!.getTime() - newStartDate!.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-800">Time Change:</span>
-                        <span className="ml-2 text-orange-600 font-medium">+{((newEndDate!.getTime() - newStartDate!.getTime()) / (1000 * 60 * 60) - originalDuration).toFixed(1)} hours</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <div className="space-y-2">
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-800">Original Time:</span>
-                        <div className="text-xs text-gray-600 mt-1">{formatSingaporeDate(originalStartDate!)} - {formatSingaporeDate(originalEndDate!)}</div>
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-800">New Time:</span>
-                        <div className="text-xs text-gray-600 mt-1">{formatSingaporeDate(newStartDate!)} - {formatSingaporeDate(newEndDate!)}</div>
-                      </div>
-                      {requiresSeatSelection ? (
-                        <>
-                          <div className="text-sm">
-                            <span className="font-medium text-gray-800">Original Seats:</span>
-                            <div className="text-xs text-gray-600 mt-1">{booking.seatNumbers?.join(', ') || 'N/A'}</div>
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium text-gray-800">New Seats:</span>
-                            <div className="text-xs text-gray-600 mt-1">
-                              {rescheduleData.seatNumbers?.join(', ') || 'Not selected'}
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-sm">
-                          <span className="font-medium text-gray-800">Seats:</span>
-                          <div className="text-xs text-gray-600 mt-1">{booking.seatNumbers?.join(', ') || 'N/A'}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4 bg-orange-50 rounded-lg p-3">
-                    <div className="text-sm font-medium text-orange-800 mb-2">Payment Breakdown</div>
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-orange-700 text-sm font-medium">Subtotal:</span>
-                        <span className="text-orange-700 text-sm font-medium">SGD ${costDifference.toFixed(2)}</span>
-                      </div>
-                      {creditAmount > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-green-700 text-sm font-medium">Credits Applied:</span>
-                          <span className="text-green-700 text-sm font-medium">- SGD ${creditAmount.toFixed(2)}</span>
-                        </div>
-                      )}
-                      {(() => {
-                        const transactionFee = selectedPaymentMethod === 'creditCard'
-                          ? finalCost * (feeSettings.creditCardFeePercentage / 100)
-                          : finalCost > 0 && finalCost < 10
-                            ? feeSettings.paynowFee
-                            : 0
-
-                        if (transactionFee > 0) {
-                          return (
+                    {/* Credit Selection - Show in Step 1 if there's additional cost */}
+                    {costDifference > 0 && user?.id && (
+                      <div className="border-t pt-4 mt-6">
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                          <div className="space-y-1 text-sm text-orange-700">
                             <div className="flex justify-between">
-                              <span className="text-orange-700 text-sm font-medium">
-                                {selectedPaymentMethod === 'creditCard' ? `Credit Card Fee (${feeSettings.creditCardFeePercentage}%)` : 'PayNow Transaction Fee'}
-                              </span>
-                              <span className="text-orange-700 text-sm font-medium">SGD ${formatCurrency(transactionFee)}</span>
+                              <span>Additional cost:</span>
+                              <span className="font-medium">${costDifference.toFixed(2)}</span>
                             </div>
-                          )
-                        }
-                        return null
-                      })()}
-                      <div className="flex justify-between font-medium border-t border-orange-200 pt-1 mt-2">
-                        <span className="text-orange-800 text-sm font-medium">Total payable:</span>
-                        <span className="text-orange-900 text-sm font-medium">
-                          SGD ${(() => {
-                            const transactionFee = selectedPaymentMethod === 'creditCard'
-                              ? finalCost * (feeSettings.creditCardFeePercentage / 100)
-                              : finalCost > 0 && finalCost < 10
-                                ? feeSettings.paynowFee
-                                : 0
-                            return formatCurrency(finalCost + transactionFee)
-                          })()}
-                        </span>
+                            {creditAmount > 0 && (
+                              <>
+                                <div className="flex justify-between text-green-700">
+                                  <span>Credits applied:</span>
+                                  <span className="font-medium">-${creditAmount.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between font-bold text-orange-800 pt-2 border-t border-orange-300">
+                                  <span>Amount to pay:</span>
+                                  <span>${finalCost.toFixed(2)}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <EntitlementTabs
+                          mode="credit"
+                          onChange={(data) => {
+                            console.log('Credit data changed:', data)
+                            if (data && data.type === 'credit' && data.creditAmount !== undefined) {
+                              setCreditAmount(data.creditAmount)
+                              // Save to localStorage for payment return
+                              localStorage.setItem(`reschedule_credit_${bookingId}`, data.creditAmount.toString())
+                              console.log('💾 Saved credit amount to localStorage:', data.creditAmount)
+                            }
+                          }}
+                          onModeChange={() => { }} // Not needed for reschedule
+                          userId={user.id}
+                          bookingAmount={costDifference}
+                          bookingDuration={newStartDate && newEndDate ? {
+                            startAt: newStartDate.toISOString(),
+                            endAt: newEndDate.toISOString(),
+                            durationHours: (newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)
+                          } : undefined}
+                          userRole={booking?.memberType || 'MEMBER'}
+                          locationPrice={booking?.memberType === 'STUDENT' ? 4.00 : booking?.memberType === 'TUTOR' ? 6.00 : 5.00}
+                          totalPeople={booking?.pax || 1}
+                          showOnlyCredit={true}
+                        />
                       </div>
+                    )}
 
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-
-          </div>
-        )}
-
-        {/* Step 3: Confirmation */}
-        {currentStep === 3 && (
-          <div className="max-w-2xl mx-auto px-4 sm:px-0">
-            {apiLoading ? (
-              <Card>
-                <CardContent className="space-y-6 py-8">
-                  <div className="text-center">
-                    <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-orange-600" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Updating Booking...</h3>
-                    <p className="text-gray-600">Please wait while we update your booking details.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : paymentError ? (
-              // Payment failed/cancelled - show error
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <XCircle className="h-5 w-5 mr-2 text-red-600" />
-                    Reschedule Failed
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h3 className="font-medium text-red-800 mb-2">Payment Not Completed</h3>
-                    <p className="text-sm text-red-700">{paymentError}</p>
-                    
-                    <div className="mt-4 pt-4 border-t border-red-200">
-                      <h4 className="font-medium text-red-800 mb-2">Booking Details (Not Changed)</h4>
-                      <div className="space-y-1 text-sm text-red-700">
-                        <div>Reference: {booking?.bookingRef}</div>
-                        <div>Location: {booking?.location}</div>
-                        <div>Current Time: {formatSingaporeDate(
-                          originalStartDate?.toISOString() || booking?.startAt || ''
-                        )} - {formatSingaporeDate(
-                          originalEndDate?.toISOString() || booking?.endAt || ''
-                        )}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-center space-y-3">
-                    <p className="text-gray-600">
-                      Your original booking remains unchanged. You can try rescheduling again.
-                    </p>
-                    <div className="flex gap-3 justify-center">
-                      <Button
-                        onClick={() => {
-                          setPaymentError(null)
-                          setCurrentStep(1)
-                          updateStepInURL(1)
-                        }}
-                        className="bg-orange-600 hover:bg-orange-700"
-                      >
-                        Try Again
-                      </Button>
+                    {/* Submit Button */}
+                    <div className="flex justify-end space-x-4">
                       <Button
                         variant="outline"
                         onClick={() => router.push('/dashboard')}
+                        disabled={submitting}
+                      >
+                        Cancel
+                      </Button>
+
+                      <Button
+                        onClick={handleStep1Submit}
+                        disabled={
+                          submitting ||
+                          apiLoading ||
+                          checkingSeats ||
+                          !newStartDate ||
+                          !newEndDate ||
+                          // Validate that start time is within shop hours
+                          (newStartDate && !isTimeWithinShopHours(newStartDate)) ||
+                          // Validate that end time is within shop hours
+                          (newEndDate && !isTimeWithinShopHours(newEndDate)) ||
+                          (requiresSeatSelection && selectedSeats.length !== booking.pax) ||
+                          costDifference < 0 ||
+                          // Disable if times haven't changed from original
+                          (newStartDate?.getTime() === originalStartDate?.getTime() &&
+                            newEndDate?.getTime() === originalEndDate?.getTime()) ||
+                          // Disable if duration decreased
+                          (newStartDate && newEndDate &&
+                            ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) < originalDuration) ||
+                          // Disable if increased but less than 1 hour (partial increase not allowed)
+                          // Allow if duration is same (0 increase) - just date/time change
+                          (newStartDate && newEndDate &&
+                            (() => {
+                              const durationIncrease = ((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60)) - originalDuration;
+                              return durationIncrease > 0 && durationIncrease < 1;
+                            })())
+                        }
+                        className="bg-orange-600 hover:bg-orange-700"
+                      >
+                        {submitting || apiLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {finalCost > 0 ? 'Processing...' : 'Confirming Reschedule...'}
+                          </>
+                        ) : (
+                          finalCost > 0 ? 'Continue to Payment' : 'Confirm Reschedule'
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="lg:col-span-1">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Calendar className="h-5 w-5 mr-2" />
+                      Current Booking
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-2 text-gray-500" />
+                      <span>{booking.location}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-2 text-gray-500" />
+                      <span>{formatSingaporeDate(originalStartDate!)} - {formatSingaporeDate(originalEndDate!)}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 mr-2 text-gray-500" />
+                      <span>
+                        {[
+                          booking.students > 0 && `${booking.students} Student${booking.students > 1 ? 's' : ''}`,
+                          booking.members > 0 && `${booking.members} Member${booking.members > 1 ? 's' : ''}`,
+                          booking.tutors > 0 && `${booking.tutors} Tutor${booking.tutors > 1 ? 's' : ''}`
+                        ].filter(Boolean).join(', ') || `${booking.pax} people`}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-sm text-gray-500">Seats: {booking.seatNumbers?.join(', ') || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-sm text-gray-500">Duration: {originalDuration.toFixed(1)} hours</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Payment */}
+          {currentStep === 2 && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+              {/* Payment Form */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <CreditCard className="h-5 w-5 mr-2" />
+                      Payment Required
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+
+                    <PaymentStep
+                      subtotal={costDifference}
+                      total={finalCost}
+                      discountAmount={creditAmount}
+                      appliedVoucher={null}
+                      selectedPackage={undefined}
+                      customer={{
+                        name: userInfo.name || booking?.bookedForEmails?.[0]?.split('@')[0] || 'User',
+                        email: userInfo.email || booking?.bookedForEmails?.[0] || 'user@example.com',
+                        phone: userInfo.phone || booking?.phone || ''
+                      }}
+                      bookingId={bookingId}
+                      onBack={() => {
+                        setCurrentStep(1)
+                        updateStepInURL(1)
+                      }}
+                      onComplete={handlePaymentComplete}
+                      onPaymentMethodChange={handlePaymentMethodChange}
+                      onCreateBooking={async () => {
+                        // For reschedule, don't update booking before payment
+                        // Just return bookingId so payment can be created
+                        // Booking will be updated AFTER payment is confirmed
+                        console.log('💳 Creating payment for reschedule, booking will update after payment confirmation')
+                        return bookingId
+                      }}
+                      onBookingCreated={(bookingId) => {
+                        console.log('Reschedule payment initiated for booking:', bookingId)
+                      }}
+                      isReschedule={true}
+                      rescheduleData={rescheduleData ? {
+                        originalStartAt: originalStartDate!.toISOString(),
+                        originalEndAt: originalEndDate!.toISOString(),
+                        newStartAt: rescheduleData.newStartAt,
+                        newEndAt: rescheduleData.newEndAt,
+                        seatNumbers: rescheduleData.seatNumbers,
+                        additionalHours: (rescheduleData.newDuration - rescheduleData.originalDuration),
+                        additionalCost: costDifference,
+                        creditAmount: creditAmount
+                      } : undefined}
+                      isLoading={apiLoading}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+              {/* Reschedule Summary */}
+              <div className="lg:col-span-1">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Calendar className="h-5 w-5 mr-2" />
+                      Reschedule Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-800">Booking Reference:</span>
+                      <span className="ml-2 text-sm text-gray-600">{booking.bookingRef}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-2 text-gray-500" />
+                      <span className="text-sm">{booking.location}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 mr-2 text-gray-500" />
+                      <span className="text-sm">
+                        {[
+                          booking.students > 0 && `${booking.students} Student${booking.students > 1 ? 's' : ''}`,
+                          booking.members > 0 && `${booking.members} Member${booking.members > 1 ? 's' : ''}`,
+                          booking.tutors > 0 && `${booking.tutors} Tutor${booking.tutors > 1 ? 's' : ''}`
+                        ].filter(Boolean).join(', ') || `${booking.pax} people`}
+                      </span>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <div className="space-y-2">
+                        <div className="text-sm">
+                          <span className="font-medium text-gray-800">Original Duration:</span>
+                          <span className="ml-2 text-gray-600">{originalDuration.toFixed(1)} hours</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium text-gray-800">New Duration:</span>
+                          <span className="ml-2 text-gray-600">{((newEndDate!.getTime() - newStartDate!.getTime()) / (1000 * 60 * 60)).toFixed(1)} hours</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium text-gray-800">Time Change:</span>
+                          <span className="ml-2 text-orange-600 font-medium">+{((newEndDate!.getTime() - newStartDate!.getTime()) / (1000 * 60 * 60) - originalDuration).toFixed(1)} hours</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <div className="space-y-2">
+                        <div className="text-sm">
+                          <span className="font-medium text-gray-800">Original Time:</span>
+                          <div className="text-xs text-gray-600 mt-1">{formatSingaporeDate(originalStartDate!)} - {formatSingaporeDate(originalEndDate!)}</div>
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium text-gray-800">New Time:</span>
+                          <div className="text-xs text-gray-600 mt-1">{formatSingaporeDate(newStartDate!)} - {formatSingaporeDate(newEndDate!)}</div>
+                        </div>
+                        {requiresSeatSelection ? (
+                          <>
+                            <div className="text-sm">
+                              <span className="font-medium text-gray-800">Original Seats:</span>
+                              <div className="text-xs text-gray-600 mt-1">{booking.seatNumbers?.join(', ') || 'N/A'}</div>
+                            </div>
+                            <div className="text-sm">
+                              <span className="font-medium text-gray-800">New Seats:</span>
+                              <div className="text-xs text-gray-600 mt-1">
+                                {rescheduleData.seatNumbers?.join(', ') || 'Not selected'}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-800">Seats:</span>
+                            <div className="text-xs text-gray-600 mt-1">{booking.seatNumbers?.join(', ') || 'N/A'}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4 bg-orange-50 rounded-lg p-3">
+                      <div className="text-sm font-medium text-orange-800 mb-2">Payment Breakdown</div>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-orange-700 text-sm font-medium">Subtotal:</span>
+                          <span className="text-orange-700 text-sm font-medium">SGD ${costDifference.toFixed(2)}</span>
+                        </div>
+                        {creditAmount > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-green-700 text-sm font-medium">Credits Applied:</span>
+                            <span className="text-green-700 text-sm font-medium">- SGD ${creditAmount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {(() => {
+                          const transactionFee = selectedPaymentMethod === 'creditCard'
+                            ? finalCost * (feeSettings.creditCardFeePercentage / 100)
+                            : finalCost > 0 && finalCost < 10
+                              ? feeSettings.paynowFee
+                              : 0
+
+                          if (transactionFee > 0) {
+                            return (
+                              <div className="flex justify-between">
+                                <span className="text-orange-700 text-sm font-medium">
+                                  {selectedPaymentMethod === 'creditCard' ? `Credit Card Fee (${feeSettings.creditCardFeePercentage}%)` : 'PayNow Transaction Fee'}
+                                </span>
+                                <span className="text-orange-700 text-sm font-medium">SGD ${formatCurrency(transactionFee)}</span>
+                              </div>
+                            )
+                          }
+                          return null
+                        })()}
+                        <div className="flex justify-between font-medium border-t border-orange-200 pt-1 mt-2">
+                          <span className="text-orange-800 text-sm font-medium">Total payable:</span>
+                          <span className="text-orange-900 text-sm font-medium">
+                            SGD ${(() => {
+                              const transactionFee = selectedPaymentMethod === 'creditCard'
+                                ? finalCost * (feeSettings.creditCardFeePercentage / 100)
+                                : finalCost > 0 && finalCost < 10
+                                  ? feeSettings.paynowFee
+                                  : 0
+                              return formatCurrency(finalCost + transactionFee)
+                            })()}
+                          </span>
+                        </div>
+
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+
+            </div>
+          )}
+
+          {/* Step 3: Confirmation */}
+          {currentStep === 3 && (
+            <div className="max-w-2xl mx-auto px-4 sm:px-0">
+              {apiLoading ? (
+                <Card>
+                  <CardContent className="space-y-6 py-8">
+                    <div className="text-center">
+                      <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-orange-600" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Updating Booking...</h3>
+                      <p className="text-gray-600">Please wait while we update your booking details.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : paymentError ? (
+                // Payment failed/cancelled - show error
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <XCircle className="h-5 w-5 mr-2 text-red-600" />
+                      Reschedule Failed
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h3 className="font-medium text-red-800 mb-2">Payment Not Completed</h3>
+                      <p className="text-sm text-red-700">{paymentError}</p>
+
+                      <div className="mt-4 pt-4 border-t border-red-200">
+                        <h4 className="font-medium text-red-800 mb-2">Booking Details (Not Changed)</h4>
+                        <div className="space-y-1 text-sm text-red-700">
+                          <div>Reference: {booking?.bookingRef}</div>
+                          <div>Location: {booking?.location}</div>
+                          <div>Current Time: {formatSingaporeDate(
+                            originalStartDate?.toISOString() || booking?.startAt || ''
+                          )} - {formatSingaporeDate(
+                            originalEndDate?.toISOString() || booking?.endAt || ''
+                          )}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-center space-y-3">
+                      <p className="text-gray-600">
+                        Your original booking remains unchanged. You can try rescheduling again.
+                      </p>
+                      <div className="flex gap-3 justify-center">
+                        <Button
+                          onClick={() => {
+                            setPaymentError(null)
+                            setCurrentStep(1)
+                            updateStepInURL(1)
+                          }}
+                          className="bg-orange-600 hover:bg-orange-700"
+                        >
+                          Try Again
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => router.push('/dashboard')}
+                        >
+                          Back to Dashboard
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (confirmationData || booking) ? (
+                // Payment successful - show success
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <CheckCircle className="h-5 w-5 mr-2 text-green-600" />
+                      Reschedule Confirmed
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <h3 className="font-medium text-green-800 mb-2">Booking Rescheduled Successfully</h3>
+                      <div className="space-y-1 text-sm text-green-700">
+                        <div>Reference: {(confirmationData?.booking || booking)?.bookingRef}</div>
+                        <div>Location: {(confirmationData?.booking || booking)?.location}</div>
+                        <div>Original: {formatSingaporeDate(
+                          confirmationData?.originalTimes?.startAt || originalStartDate?.toISOString() || ''
+                        )} - {formatSingaporeDate(
+                          confirmationData?.originalTimes?.endAt || originalEndDate?.toISOString() || ''
+                        )}</div>
+                        <div>New: {formatSingaporeDate(
+                          confirmationData?.booking?.startAt || booking?.startAt || newStartDate?.toISOString() || ''
+                        )} - {formatSingaporeDate(
+                          confirmationData?.booking?.endAt || booking?.endAt || newEndDate?.toISOString() || ''
+                        )}</div>
+                      </div>
+                    </div>
+
+                    <div className="text-center">
+                      {/* <p className="text-gray-600 mb-4">
+                    Your booking has been successfully rescheduled. You will receive a confirmation email shortly.
+                  </p> */}
+                      <Button
+                        onClick={() => router.push('/dashboard')}
+                        className="bg-orange-600 hover:bg-orange-700"
                       >
                         Back to Dashboard
                       </Button>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (confirmationData || booking) ? (
-              // Payment successful - show success
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <CheckCircle className="h-5 w-5 mr-2 text-green-600" />
-                    Reschedule Confirmed
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h3 className="font-medium text-green-800 mb-2">Booking Rescheduled Successfully</h3>
-                  <div className="space-y-1 text-sm text-green-700">
-                    <div>Reference: {(confirmationData?.booking || booking)?.bookingRef}</div>
-                    <div>Location: {(confirmationData?.booking || booking)?.location}</div>
-                    <div>Original: {formatSingaporeDate(
-                      confirmationData?.originalTimes?.startAt || originalStartDate?.toISOString() || ''
-                    )} - {formatSingaporeDate(
-                      confirmationData?.originalTimes?.endAt || originalEndDate?.toISOString() || ''
-                    )}</div>
-                    <div>New: {formatSingaporeDate(
-                      confirmationData?.booking?.startAt || booking?.startAt || newStartDate?.toISOString() || ''
-                    )} - {formatSingaporeDate(
-                      confirmationData?.booking?.endAt || booking?.endAt || newEndDate?.toISOString() || ''
-                    )}</div>
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  {/* <p className="text-gray-600 mb-4">
-                    Your booking has been successfully rescheduled. You will receive a confirmation email shortly.
-                  </p> */}
-                  <Button
-                    onClick={() => router.push('/dashboard')}
-                    className="bg-orange-600 hover:bg-orange-700"
-                  >
-                    Back to Dashboard
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-            ) : null}
-          </div>
-        )}
+                  </CardContent>
+                </Card>
+              ) : null}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-    <FooterSection/>
+      <FooterSection />
     </>
   )
 }
