@@ -54,6 +54,7 @@ import { RefundSystemTest } from '@/components/RefundSystemTest'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { getUserProfile, updateUserProfile, UserProfile, formatUserName, getMemberTypeDisplayName, getVerificationStatusDisplayName, getVerificationStatusColor, getEffectiveMemberType, getDaysUntilVerificationExpiry, isVerificationExpired, isVerificationExpiringSoon, getVerificationExpiryMessage } from '@/lib/userProfileService'
+import { authenticatedFetch } from '@/lib/apiClient'
 import { StudentDocumentUpload } from '@/components/StudentDocumentUpload'
 import { StudentDocumentData } from '@/lib/studentDocumentService'
 import { getUserBookings, Booking as ApiBooking, formatBookingDate, getBookingStatus, getStatusColor, calculateDuration } from '@/lib/bookingService'
@@ -162,7 +163,7 @@ export default function Dashboard() {
   // Load verification history
   const loadVerificationHistory = async (userId: string) => {
     try {
-      const response = await fetch(`https://mps-mu.vercel.app/api/verification-history/${userId}`)
+      const response = await authenticatedFetch(`https://mps-mu.vercel.app/api/verification-history/${userId}`)
       const data = await response.json()
 
       if (data.success) {
