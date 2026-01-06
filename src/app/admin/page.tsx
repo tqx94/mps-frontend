@@ -43,8 +43,8 @@ const mockCancellations: CancellationRequest[] = [
   {
     id: '1',
     bookingReference: 'BK001236',
-    userEmail: 'john.doe@example.com',
-    userName: 'John Doe',
+    userEmail: '',
+    userName: '',
     locationName: 'Kovan',
     bookingDate: '2024-11-20',
     bookingTime: '14:00 - 18:00',
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
   // Always start with 'overview' on both server and client to avoid hydration mismatch
   const [activeTab, setActiveTab] = useState('overview')
   const [refundRequests, setRefundRequests] = useState<RefundTransaction[]>([])
-  const [users, setUsers] = useState<UserAccount[]>(mockUsers)
+  const [users, setUsers] = useState<UserAccount[]>([])
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')

@@ -108,11 +108,11 @@ export default function Dashboard() {
 
   // Sample data for testing (fallback)
   const sampleUserData = {
-    name: 'John Doe',
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    contactNumber: '+1 (555) 123-4567',
+    name: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    contactNumber: '',
     memberType: 'MEMBER' as const,
     studentVerificationStatus: 'NA' as 'NA' | 'PENDING' | 'VERIFIED' | 'REJECTED',
     studentRejectionReason: null
