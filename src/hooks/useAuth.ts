@@ -104,7 +104,7 @@ export function useAuth() {
         setTimeout(() => reject(new Error('Database fetch timeout')), 10000)
       )
 
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any
+      const { data, error } = await Promise.race([fetchPromise]) as any
 
       if (error || !data) {
         console.error('Error fetching database user:', error)
