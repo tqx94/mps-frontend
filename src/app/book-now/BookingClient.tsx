@@ -2142,6 +2142,7 @@ export default function BookingClient() {
                           })()}
                           totalPeople={people}
                           peopleBreakdown={peopleBreakdown}
+                          pricing={pricing}
                         />
                       )}
                       {/* ──────────────────────────────────────────────── */}

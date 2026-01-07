@@ -139,6 +139,11 @@ type Props = {
     coWorkers: number
     coTutors: number
   }
+  pricing?: {
+    student: { oneHourRate: number; overOneHourRate: number }
+    member: { oneHourRate: number; overOneHourRate: number }
+    tutor: { oneHourRate: number; overOneHourRate: number }
+  }
 }
 
 export function EntitlementTabs({
@@ -155,7 +160,8 @@ export function EntitlementTabs({
   locationPrice = 0,
   totalPeople = 1,
   showOnlyCredit = false,
-  peopleBreakdown = { coStudents: 0, coWorkers: 0, coTutors: 0 }
+  peopleBreakdown = { coStudents: 0, coWorkers: 0, coTutors: 0 },
+  pricing
 }: Props) {
   const [localPromo, setLocalPromo] = useState(promoCode || '')
   const [promoFeedback, setPromoFeedback] = useState<{ isValid: boolean; message: string } | null>(null)
@@ -284,23 +290,63 @@ export function EntitlementTabs({
     }
   }, [mode, userId]);
   
+  // Helper function to calculate student-only amount from booking
+  const calculateStudentAmount = (): number => {
+    if (!bookingDuration || peopleBreakdown.coStudents === 0) {
+      return 0;
+    }
+
+    const actualHours = bookingDuration.durationHours;
+    
+    // Get student rate from pricing if available, otherwise use a default
+    let studentRate: number;
+    if (pricing) {
+      studentRate = actualHours <= 1 ? pricing.student.oneHourRate : pricing.student.overOneHourRate;
+    } else {
+      // Fallback: use locationPrice if available, otherwise default student rate
+      studentRate = locationPrice || 5.00; // Default to $5/hour for students
+    }
+    
+    const studentCost = studentRate * actualHours * peopleBreakdown.coStudents;
+    
+    return studentCost;
+  };
+
   // Recalculate promo code discount when bookingAmount changes
   useEffect(() => {
     if (selectedPromoCode && bookingAmount > 0) {
-      const localValidation = validatePromoCodeLocally(selectedPromoCode, bookingAmount);
+      // Check if this is a student-specific promo code
+      const isStudentPromo = selectedPromoCode.promoType === 'GROUP_SPECIFIC' && 
+                            selectedPromoCode.targetGroup === 'STUDENT';
+      
+      // For student promo codes, calculate discount only on student portion
+      const amountToUse = isStudentPromo ? calculateStudentAmount() : bookingAmount;
+      
+      // If student promo but no students in booking, remove promo
+      if (isStudentPromo && amountToUse === 0) {
+        handleRemovePromo();
+        return;
+      }
+
+      const localValidation = validatePromoCodeLocally(selectedPromoCode, amountToUse);
       if (localValidation.isValid) {
-        const newCalculation = calculateDiscountLocally(selectedPromoCode, bookingAmount);
+        const newCalculation = calculateDiscountLocally(selectedPromoCode, amountToUse);
+
+        // For student promo codes, final amount = total booking - student discount
+        const finalAmount = isStudentPromo 
+          ? bookingAmount - newCalculation.discountAmount 
+          : newCalculation.finalAmount;
 
         setDiscountCalculation(prev => {
           if (prev &&
             prev.discountAmount === newCalculation.discountAmount &&
-            prev.finalAmount === newCalculation.finalAmount) {
+            prev.finalAmount === finalAmount) {
             return prev;
           }
 
           return {
             discountAmount: newCalculation.discountAmount,
-            finalAmount: newCalculation.finalAmount,
+            finalAmount: finalAmount,
             isValid: true,
             message: 'Promo code recalculated for new amount'
           };
@@ -310,14 +356,14 @@ export function EntitlementTabs({
           type: 'promo',
           id: selectedPromoCode.id,
           discountAmount: newCalculation.discountAmount,
-          finalAmount: newCalculation.finalAmount,
+          finalAmount: finalAmount,
           promoCode: selectedPromoCode
         });
       } else {
         handleRemovePromo();
       }
     }
-  }, [bookingAmount, selectedPromoCode]);
+  }, [bookingAmount, selectedPromoCode, bookingDuration, locationPrice, peopleBreakdown]);
 
   // Validate and apply promo code (accepts optional promo code parameter for one-click apply)
   const handleValidatePromo = useCallback(async (promoCodeParam?: string) => {
@@ -342,10 +388,29 @@ export function EntitlementTabs({
       return;
     }
 
+    // Check if this is a student-specific promo code
+    const isStudentPromo = foundPromo.promoType === 'GROUP_SPECIFIC' && 
+                           foundPromo.targetGroup === 'STUDENT';
+    
+    // For student promo codes, calculate discount only on student portion
+    const studentAmount = calculateStudentAmount();
+    const amountToUse = isStudentPromo ? studentAmount : bookingAmount;
+    
+    // If student promo but no students in booking, show error
+    if (isStudentPromo && studentAmount === 0) {
+      setPromoFeedback({ isValid: false, message: 'Student promo code can only be applied when students are included in the booking' });
+      toast({
+        title: "Cannot Apply Promo",
+        description: 'Student promo code can only be applied when students are included in the booking',
+        variant: "destructive"
+      });
+      return;
+    }
+
     setApplyingPromoId(foundPromo.id);
     try {
 
-      const localValidation = validatePromoCodeLocally(foundPromo, bookingAmount);
+      const localValidation = validatePromoCodeLocally(foundPromo, amountToUse);
       if (!localValidation.isValid) {
         setPromoFeedback({ isValid: false, message: localValidation.message });
         setApplyingPromoId(null);
@@ -357,19 +422,27 @@ export function EntitlementTabs({
         return;
       }
 
+      // For student promo codes, send student amount to API
+      // For other promo codes, send total booking amount
       const apiResponse = await applyPromoCode({
         promoCode: foundPromo.code,
         userId,
-        bookingAmount,
+        bookingAmount: amountToUse, // Send student amount for student promos, total for others
         startAt: bookingDuration?.startAt,
         endAt: bookingDuration?.endAt
       });
 
       if (apiResponse.eligibility.isEligible) {
         setSelectedPromoCode(apiResponse.promoCode);
+        
+        // For student promo codes, calculate final amount as: total booking - student discount
+        const finalAmount = isStudentPromo 
+          ? bookingAmount - apiResponse.calculation.discountAmount 
+          : apiResponse.calculation.finalAmount;
+        
         setDiscountCalculation({
           discountAmount: apiResponse.calculation.discountAmount,
-          finalAmount: apiResponse.calculation.finalAmount,
+          finalAmount: finalAmount,
           isValid: true,
           message: 'Promo code applied successfully!'
         });
@@ -379,13 +452,13 @@ export function EntitlementTabs({
           type: 'promo',
           id: apiResponse.promoCode.id,
           discountAmount: apiResponse.calculation.discountAmount,
-          finalAmount: apiResponse.calculation.finalAmount,
+          finalAmount: finalAmount,
           promoCode: apiResponse.promoCode
         });
 
         toast({
           title: "Promo Code Applied!",
-          description: `${foundPromo.code} - Save $${apiResponse.calculation.discountAmount.toFixed(2)}`,
+          description: `${foundPromo.code} - Save $${apiResponse.calculation.discountAmount.toFixed(2)}${isStudentPromo ? ' (applied to students only)' : ''}`,
         });
       } else {
         setPromoFeedback({
@@ -409,7 +482,7 @@ export function EntitlementTabs({
     } finally {
       setApplyingPromoId(null);
     }
-  }, [localPromo, userId, bookingAmount, availablePromos, onChange, toast, bookingDuration]);
+  }, [localPromo, userId, bookingAmount, availablePromos, onChange, toast, bookingDuration, locationPrice, peopleBreakdown]);
 
   const handleRemovePromo = useCallback(() => {
     setLocalPromo('');
