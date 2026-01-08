@@ -100,11 +100,11 @@ export function useAuth() {
         .eq('id', authUser.id)
         .single()
 
-      const timeoutPromise = new Promise((_, reject) =>
+      const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Database fetch timeout')), 10000)
       )
 
-      const { data, error } = await Promise.race([fetchPromise]) as any
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise])
 
       if (error || !data) {
         console.error('Error fetching database user:', error)
