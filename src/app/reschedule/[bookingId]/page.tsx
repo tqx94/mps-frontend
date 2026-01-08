@@ -1291,7 +1291,7 @@ export default function ReschedulePage() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Button>
-            <div>
+            <div>⚠ Unable to reschedule - This booking period overlaps with shop closure/vacation hours. Please select another timeslot
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Reschedule Booking</h1>
               <p className="text-sm sm:text-base text-gray-600">Reference: {booking.bookingRef}</p>
             </div>
@@ -1397,7 +1397,7 @@ export default function ReschedulePage() {
                               if (doesBookingOverlapWithClosure(newStartDate, newEndDate)) {
                                 return (
                                   <span className="block mt-1 text-red-600 font-semibold">
-                                    ⚠ Unable to reschedule - This booking period overlaps with shop closure/vacation hours.
+                                    ⚠ Unable to reschedule - This booking period overlaps with shop closure/vacation hours. Please select another timeslot
                                   </span>
                                 );
                               }
@@ -1408,7 +1408,7 @@ export default function ReschedulePage() {
                               if (isStartTimeInvalid || isEndTimeInvalid) {
                                 return (
                                   <span className="block mt-1 text-red-600 font-semibold">
-                                    ⚠ Unable to book this slot as the shop is closed in this timeslot.
+                                    ⚠ Unable to book this slot as the shop is closed in this timeslot. Please select another timeslot
                                   </span>
                                 );
                               }
