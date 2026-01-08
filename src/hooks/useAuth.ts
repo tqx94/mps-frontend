@@ -149,61 +149,82 @@ export function useAuth() {
 
   useEffect(() => {
     let isMounted = true
-    let databaseUserFetched = false // Track if we've already fetched database user
+    let hasCachedData = false // Track if we have cached data from localStorage
 
-    // Load initial data from storage
+    // STEP 1: Load from localStorage FIRST - this is instant, no API call
     const storedAuthUser = localStorage.getItem(STORAGE_KEYS.AUTH_USER)
     const storedDatabaseUser = localStorage.getItem(STORAGE_KEYS.DATABASE_USER)
 
     if (storedAuthUser && storedDatabaseUser) {
       try {
-        setUser(JSON.parse(storedAuthUser))
-        setDatabaseUser(JSON.parse(storedDatabaseUser))
-        databaseUserFetched = true // Mark as fetched since we have cached data
-        // If we have cached data, set loading to false immediately
-        setLoading(false)
+        const parsedAuthUser = JSON.parse(storedAuthUser)
+        const parsedDatabaseUser = JSON.parse(storedDatabaseUser)
+        
+        setUser(parsedAuthUser)
+        setDatabaseUser(parsedDatabaseUser)
+        hasCachedData = true
+        setLoading(false) // Set loading false immediately - user can use cached data
+        
+        console.log('✅ Loaded user from localStorage - NO API CALL')
       } catch (error) {
         console.error('Error loading from local storage:', error)
+        hasCachedData = false
       }
+    } else {
+      // No cached data - need to check session
+      hasCachedData = false
     }
 
-    // Get initial session and refresh data in background
-    const getInitialSession = async () => {
+    // STEP 2: Only verify session if we DON'T have cached data OR on initial mount
+    // This prevents unnecessary API calls when we already have data
+    const verifySession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
 
-        if (session?.user && isMounted) {
-          // Only fetch if we don't have cached database user
-          if (!databaseUserFetched) {
-            try {
-              const dbUser = await fetchDatabaseUser(session.user)
-              // Check if mounted again after async operation
-              if (isMounted) {
-                setUser(session.user)
-                setDatabaseUser(dbUser)
-                saveToStorage(session.user, dbUser)
-                databaseUserFetched = true
-              }
-            } catch (error: any) {
-              // If user is disabled, clear everything
-              if (error?.message === 'Account disabled') {
-                if (isMounted) {
-                  setUser(null)
-                  setDatabaseUser(null)
-                  saveToStorage(null, null)
-                  // Show toast notification (if available)
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('user-disabled'))
-                  }
-                }
-              } else {
-                console.error('Error fetching database user:', error)
-              }
-            }
-          } else {
-            // We have cached data, just update auth user if needed
+        if (!session?.user) {
+          // No session - clear everything
+          if (isMounted) {
+            setUser(null)
+            setDatabaseUser(null)
+            saveToStorage(null, null)
+            setLoading(false)
+          }
+          return
+        }
+
+        // If we have cached data, just verify session matches (no API call)
+        if (hasCachedData && isMounted) {
+          // Just update auth user if session exists, keep databaseUser from cache
+          setUser(session.user)
+          // Optionally update auth user in storage
+          saveToStorage(session.user, JSON.parse(storedDatabaseUser!))
+          console.log('✅ Using cached database user - NO API CALL')
+          return
+        }
+
+        // Only fetch from API if we DON'T have cached data
+        if (!hasCachedData && isMounted) {
+          console.log('⚠️ No cached data, fetching from API...')
+          try {
+            const dbUser = await fetchDatabaseUser(session.user)
             if (isMounted) {
               setUser(session.user)
+              setDatabaseUser(dbUser)
+              saveToStorage(session.user, dbUser)
+              hasCachedData = true
+            }
+          } catch (error: any) {
+            if (error?.message === 'Account disabled') {
+              if (isMounted) {
+                setUser(null)
+                setDatabaseUser(null)
+                saveToStorage(null, null)
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('user-disabled'))
+                }
+              }
+            } else {
+              console.error('Error fetching database user:', error)
             }
           }
         }
@@ -216,69 +237,70 @@ export function useAuth() {
       }
     }
 
-    getInitialSession()
+    // Only verify session if we don't have cached data
+    if (!hasCachedData) {
+      verifySession()
+    }
 
-    // Listen for auth changes
+    // STEP 3: Listen for auth changes - but ONLY fetch on SIGNED_IN
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return
 
-        console.log('Auth state change:', event, session?.user?.id)
+        console.log('Auth state change:', event)
 
         if (session?.user) {
-          // Only fetch database user on SIGNED_IN or if we don't have it yet
-          // For TOKEN_REFRESHED and other routine events, use cached data
-          if (event === 'SIGNED_IN' || !databaseUserFetched) {
+          // ONLY fetch from API on SIGNED_IN event (new login)
+          // For all other events (TOKEN_REFRESHED, USER_UPDATED, etc.), use cached data
+          if (event === 'SIGNED_IN') {
+            console.log('🔄 SIGNED_IN event - fetching fresh data from API')
             try {
               const dbUser = await fetchDatabaseUser(session.user)
               if (isMounted) {
                 setUser(session.user)
                 setDatabaseUser(dbUser)
                 saveToStorage(session.user, dbUser)
-                databaseUserFetched = true
+                hasCachedData = true
               }
             } catch (error: any) {
               console.error('Error in auth state change:', error)
-              // If user is disabled, clear everything
               if (error?.message === 'Account disabled') {
                 if (isMounted) {
                   setUser(null)
                   setDatabaseUser(null)
                   saveToStorage(null, null)
-                  databaseUserFetched = false
-                  // Show toast notification (if available)
+                  hasCachedData = false
                   if (typeof window !== 'undefined') {
                     window.dispatchEvent(new CustomEvent('user-disabled'))
                   }
                 }
                 return
               }
-              // Still set the user even if database fetch fails (for other errors)
+              // Fallback to mock user if fetch fails
               if (isMounted) {
                 setUser(session.user)
                 const mockUser = createMockDatabaseUser(session.user)
                 setDatabaseUser(mockUser)
                 saveToStorage(session.user, mockUser)
-                databaseUserFetched = true
+                hasCachedData = true
               }
             }
           } else {
-            // For other events (TOKEN_REFRESHED, USER_UPDATED, etc.), just update auth user
-            // Use existing databaseUser from cache - NO API CALL!
+            // For TOKEN_REFRESHED, USER_UPDATED, etc. - use cached data, NO API CALL
             if (isMounted) {
               setUser(session.user)
-              // Keep existing databaseUser - don't fetch again
-              // This prevents unnecessary API calls on token refresh
+              // Keep existing databaseUser from localStorage - NO API CALL!
+              console.log(`✅ ${event} event - using cached data, NO API CALL`)
             }
           }
         } else {
-          console.log('No session, clearing user data immediately')
+          // SIGNED_OUT event
+          console.log('🚪 SIGNED_OUT - clearing user data')
           if (isMounted) {
             setUser(null)
             setDatabaseUser(null)
             saveToStorage(null, null)
-            databaseUserFetched = false
-            // Force loading to false immediately for logout
+            hasCachedData = false
             setLoading(false)
           }
           return
