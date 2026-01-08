@@ -163,9 +163,10 @@ export function useAuth() {
         setUser(parsedAuthUser)
         setDatabaseUser(parsedDatabaseUser)
         hasCachedData = true
-        setLoading(false) // Set loading false immediately - user can use cached data
+        // Set loading false immediately - user can use cached data
+        setLoading(false)
         
-        console.log('✅ Loaded user from localStorage - NO API CALL')
+        console.log('✅ Loaded user from localStorage - NO API CALL, loading: false')
       } catch (error) {
         console.error('Error loading from local storage:', error)
         hasCachedData = false
@@ -175,7 +176,7 @@ export function useAuth() {
       hasCachedData = false
     }
 
-    // STEP 2: Only verify session if we DON'T have cached data OR on initial mount
+    // STEP 2: Only verify session if we DON'T have cached data
     // This prevents unnecessary API calls when we already have data
     const verifySession = async () => {
       try {
@@ -198,7 +199,8 @@ export function useAuth() {
           setUser(session.user)
           // Optionally update auth user in storage
           saveToStorage(session.user, JSON.parse(storedDatabaseUser!))
-          console.log('✅ Using cached database user - NO API CALL')
+          setLoading(false) // Ensure loading is false
+          console.log('✅ Using cached database user - NO API CALL, loading: false')
           return
         }
 
@@ -212,6 +214,7 @@ export function useAuth() {
               setDatabaseUser(dbUser)
               saveToStorage(session.user, dbUser)
               hasCachedData = true
+              setLoading(false) // Set loading false after fetch
             }
           } catch (error: any) {
             if (error?.message === 'Account disabled') {
@@ -219,18 +222,23 @@ export function useAuth() {
                 setUser(null)
                 setDatabaseUser(null)
                 saveToStorage(null, null)
+                setLoading(false) // Set loading false even on error
                 if (typeof window !== 'undefined') {
                   window.dispatchEvent(new CustomEvent('user-disabled'))
                 }
               }
             } else {
               console.error('Error fetching database user:', error)
+              // Set loading false even on error - use mock user
+              if (isMounted) {
+                setLoading(false)
+              }
             }
           }
         }
       } catch (error) {
         console.error('Error getting session:', error)
-      } finally {
+        // Set loading false on any error
         if (isMounted) {
           setLoading(false)
         }
@@ -238,8 +246,16 @@ export function useAuth() {
     }
 
     // Only verify session if we don't have cached data
+    // If we have cached data, loading is already false, so we're done
     if (!hasCachedData) {
       verifySession()
+    } else {
+      // We have cached data, loading is already false, but verify session in background (non-blocking)
+      // This ensures session is still valid, but doesn't block the UI
+      verifySession().catch(() => {
+        // Silently handle any errors - we already have cached data
+        console.log('Background session verification failed, using cached data')
+      })
     }
 
     // STEP 3: Listen for auth changes - but ONLY fetch on SIGNED_IN
@@ -261,6 +277,7 @@ export function useAuth() {
                 setDatabaseUser(dbUser)
                 saveToStorage(session.user, dbUser)
                 hasCachedData = true
+                setLoading(false) // Ensure loading is false
               }
             } catch (error: any) {
               console.error('Error in auth state change:', error)
@@ -270,6 +287,7 @@ export function useAuth() {
                   setDatabaseUser(null)
                   saveToStorage(null, null)
                   hasCachedData = false
+                  setLoading(false) // Set loading false
                   if (typeof window !== 'undefined') {
                     window.dispatchEvent(new CustomEvent('user-disabled'))
                   }
@@ -283,6 +301,7 @@ export function useAuth() {
                 setDatabaseUser(mockUser)
                 saveToStorage(session.user, mockUser)
                 hasCachedData = true
+                setLoading(false) // Set loading false
               }
             }
           } else {
@@ -290,7 +309,8 @@ export function useAuth() {
             if (isMounted) {
               setUser(session.user)
               // Keep existing databaseUser from localStorage - NO API CALL!
-              console.log(`✅ ${event} event - using cached data, NO API CALL`)
+              setLoading(false) // Always set loading false for these events
+              console.log(`✅ ${event} event - using cached data, NO API CALL, loading: false`)
             }
           }
         } else {
@@ -301,11 +321,12 @@ export function useAuth() {
             setDatabaseUser(null)
             saveToStorage(null, null)
             hasCachedData = false
-            setLoading(false)
+            setLoading(false) // Set loading false on logout
           }
           return
         }
 
+        // Always ensure loading is false after auth state change
         if (isMounted) {
           setLoading(false)
         }

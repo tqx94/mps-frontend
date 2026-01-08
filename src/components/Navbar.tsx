@@ -57,10 +57,21 @@ export default function Navbar() {
   const [logoutLoading, setLogoutLoading] = useState(false)
   const [expandedDropdowns, setExpandedDropdowns] = useState<Set<string>>(new Set())
 
-  // Ensure databaseUser is loaded if user exists
+  // Ensure databaseUser is loaded if user exists (only if no cached data)
+  // This is a fallback - should not be needed if localStorage is working correctly
   useEffect(() => {
+    // Only refresh if:
+    // 1. User exists (logged in)
+    // 2. DatabaseUser doesn't exist (not loaded yet)
+    // 3. Auth loading is complete (not in loading state)
+    // 4. We don't have cached data in localStorage (edge case)
     if (user && !databaseUser && !authLoading) {
-      refreshDatabaseUser()
+      const cachedDbUser = localStorage.getItem('database_user')
+      // Only refresh if there's truly no cached data
+      if (!cachedDbUser) {
+        console.log('⚠️ Navbar: No databaseUser and no cache, refreshing...')
+        refreshDatabaseUser()
+      }
     }
   }, [user, databaseUser, authLoading, refreshDatabaseUser])
 
