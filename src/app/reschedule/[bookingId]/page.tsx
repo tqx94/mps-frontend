@@ -1488,8 +1488,7 @@ export default function ReschedulePage() {
                       <Alert className="border-red-500 bg-red-50">
                         <AlertTriangle className="h-4 w-4 text-red-600" />
                         <AlertDescription className="text-red-700">
-                          This slot has been booked by another tutor. Only non-teaching slots can happen during this timing.
-                          For other questions, please WhatsApp admin.
+                        This slot has been booked by another tutor. Only non-teaching slots can happen during this timing. Please select another slot. For other questions, please WhatsApp admin.
                         </AlertDescription>
                       </Alert>
                     ) : showSeatSelectionError ? (
@@ -1499,17 +1498,14 @@ export default function ReschedulePage() {
                           Your original seats are not available for the new time. Please select different seats.
                         </AlertDescription>
                       </Alert>
-                    ) : null}
-
-
-                    {!requiresSeatSelection && !checkingSeats && newStartDate && newEndDate && (
+                    ) : (!requiresSeatSelection && !checkingSeats && newStartDate && newEndDate) ? (
                       <Alert>
                         <CheckCircle className="h-4 w-4" />
                         <AlertDescription>
                           Your original seats are available for the new time.
                         </AlertDescription>
                       </Alert>
-                    )}
+                    ) : null}
 
                     {/* No Seats Available Message */}
                     {!checkingSeats && newStartDate && newEndDate && availableSeats.length === 0 && (
