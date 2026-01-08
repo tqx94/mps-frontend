@@ -610,10 +610,8 @@ export default function ReschedulePage() {
           // Set initial selected seats
           setSelectedSeats(bookingData.seatNumbers || [])
 
-          // Load pricing dynamically from backend
-          console.log('🔍 About to call getAllPricingForLocation for Kovan')
           const allPricing = await getAllPricingForLocation('Kovan')
-          console.log('🔍 Loaded pricing from API:', allPricing)
+      
           setPricing(allPricing)
 
         } else {
@@ -625,7 +623,8 @@ export default function ReschedulePage() {
           router.push('/dashboard')
         }
       } catch (error) {
-        console.error('Error loading booking:', error)
+        setLoading(false)
+    
         toast({
           title: "Error",
           description: "Failed to load booking details",
