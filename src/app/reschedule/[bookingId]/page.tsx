@@ -1292,7 +1292,7 @@ export default function ReschedulePage() {
               Back to Dashboard
             </Button>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Reschedule Booking</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Reschedule Bookingsssss</h1>
               <p className="text-sm sm:text-base text-gray-600">Reference: {booking.bookingRef}</p>
             </div>
           </div>
