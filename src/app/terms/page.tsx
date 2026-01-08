@@ -92,17 +92,17 @@ export default function LegalPage() {
             My Productive Space reserves the right to nullify any discounts if discount/packages were discovered to be misused.
           </p>
 <br/>
-          <h2 className="text-center mb-1 underline">Contacting</h2>
-          <p className="text-center">
+          <h2 className=" mb-1 underline">Contacting</h2>
+          <p className="">
             We require 1-2 working days to attend to emails. Kindly refrain from sending multiple emails as our email works in a 
             ticketing system if multiple emails are sent, the initial email from the same sender will get pushed back, hence resulting 
             in possible delay in replies. You may whatsapp us for faster replies.
           </p>
           <br/>
-          <p className="text-center">
+          <p className="">
             My Productive Space will love to serve you with courtesy and respect, and we will appreciate if you treat our staffs in the same manner.
           </p>
-          <p className="text-center">
+          <p className="">
             Thank you for choosing to work productively with My Productive Space :)
           </p>
         </section>
