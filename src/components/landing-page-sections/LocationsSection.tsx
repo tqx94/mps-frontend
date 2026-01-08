@@ -12,15 +12,12 @@ import Link from 'next/link'
 const locations = [
   {
         src: '/mock_img/zoneA.png',
-        title: 'Kovan Zone A',
+        title: 'Kovan',
         desc: '15 seats in Total',
         items: [
-        'T1–T2: Window-side solo seats',
-        'T4, T5: Group tables',
-        'T7: Double-seat near pillar',
-        'T1–T2: Window-side solo seats',
-        'T4, T5: Group tables',
-        '.....',
+        'Monitors have different types of cables, subjected to availability',
+        '15 seats in total',
+       
         ],
     }
 ]
@@ -29,10 +26,8 @@ export default function LocationsSection() {
   return (
     <section id="Locations" className="py-12">
       <div className="container mx-auto">
-      <h2 className="text-4xl font-serif text-center">Locations</h2>
-      {/* <p className="mt-2 text-gray-600 text-center text-2xl font-semibold">Your Seat, Your Space</p> */}
-      <p className="mt-2 px-6 text-gray-600 text-center">Seat Layout</p>
-    
+      <h2 className="text-4xl font-serif text-center">Locations & Seat Layout</h2>
+   
         <Carousel
           settings={{
             slidesToShow: 1,    // exactly 1 slide visible
@@ -48,20 +43,20 @@ export default function LocationsSection() {
             return (
             <div
               key={i}
-              className="w-full flex flex-col md:flex-row items-start gap-6 p-6 bg-gray-50 rounded-lg"
+              className="w-full flex flex-col md:flex-row items-start justify-between gap-6 p-6 bg-gray-50 rounded-lg"
             >
               <Image
                 src={loc.src}
                 alt={loc.title}
-                width={400}
-                height={300}
+                width={600}
+                height={200}
                 className="rounded-lg flex-shrink-0"
               />
               <div>
                 <h3 className="text-2xl font-semibold">
                   Current Location: {loc.title}
                 </h3>
-                <p className="mt-2 text-gray-700">{loc.desc}</p>
+                {/* <p className="mt-2 text-gray-700">{loc.desc}</p> */}
                 <ul className="mt-2 list-disc list-inside text-gray-700 space-y-1">
                   {loc.items.map((it, j) => (
                     <li key={j}>{it}</li>
