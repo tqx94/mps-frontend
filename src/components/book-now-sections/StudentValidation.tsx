@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle, XCircle, Loader2, Users, GraduationCap, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { getAuthHeaders } from '@/lib/apiClient'
 
 // Real API response type
 export type StudentVerificationResponse = {
@@ -42,11 +43,10 @@ type StudentValidationProps = {
 // Real API call to validate student
 const validateStudentAccount = async (email: string): Promise<StudentVerificationResponse> => {
   try {
+    const headers = await getAuthHeaders()
     const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/student/check-verification`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({ email: email.trim() }),
     })
 
@@ -67,11 +67,10 @@ const validateStudentAccount = async (email: string): Promise<StudentVerificatio
 // Bulk validation API call
 const validateAllStudents = async (emails: string[]): Promise<StudentVerificationResponse[]> => {
   try {
+    const headers = await getAuthHeaders()
     const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_BASE_URL}/student/check-multiple`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({ emails: emails.map(email => email.trim()) }),
     })
 

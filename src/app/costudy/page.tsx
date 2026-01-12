@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { getEffectiveMemberType } from '@/lib/userProfileService'
 import { usePricing } from '@/hooks/usePricing'
 import { FooterSection } from '@/components/landing-page-sections/FooterSection'
+import { getAuthHeaders } from '@/lib/apiClient'
 
 // Define the user type for API response
 interface ApiUser {
@@ -99,13 +100,17 @@ export default function CoLearningPage() {
     try {
       setUserLoading(true)
       const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://mps-mu.vercel.app/api'
-      const response = await fetch(`${API_BASE_URL}/user/${user.id}`)
+      const headers = await getAuthHeaders()
+      const response = await fetch(`${API_BASE_URL}/user/${user.id}`, {
+        headers
+      })
       
       if (response.ok) {
         const userData = await response.json()
         if (userData.success && userData.user) {
           console.log('Fresh user data from API:', userData.user)
           setCurrentUser(userData.user as ApiUser)
+          console.log(userData, 'user data')
         }
       } else {
         console.error('Failed to fetch user data:', response.status, response.statusText)
@@ -142,6 +147,9 @@ export default function CoLearningPage() {
         currentUser.studentVerificationStatus
       )
     : 'MEMBER'
+
+
+    console.log(currentUser, 'current user ')
 
   const isStudent = effectiveMemberType === 'STUDENT'
   const canPurchase = canPurchasePackage()

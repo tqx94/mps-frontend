@@ -90,31 +90,43 @@ export function useAuth() {
 
   // Fetch actual database user
   const fetchDatabaseUser = async (authUser: User): Promise<DatabaseUser> => {
+    const startTime = Date.now()
+    const TIMEOUT_MS = 15000 // Increased to 15 seconds
+    
     try {
-      console.log('Fetching database user for:', authUser.id)
+    
+      // Create a timeout promise that rejects after TIMEOUT_MS
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          const elapsed = Date.now() - startTime
+             reject(new Error(`Database fetch timeout after ${elapsed}ms`))
+        }, TIMEOUT_MS)
+      })
 
-      // Use Promise.race to implement timeout
+      // Create the Supabase query promise
       const fetchPromise = supabase
         .from('User')
         .select('*')
         .eq('id', authUser.id)
         .single()
 
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Database fetch timeout')), 10000)
-      )
-
+      // Race between fetch and timeout
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise])
-
-      if (error || !data) {
-        console.error('Error fetching database user:', error)
+      
+      const elapsed = Date.now() - startTime
+    
+      if (error) {
+       
         return createMockDatabaseUser(authUser)
+      }
+
+      if (!data) {
+           return createMockDatabaseUser(authUser)
       }
 
       // Check if user is disabled
       if (data.disabled === true || data.isDisabled === true) {
-        console.warn('User is disabled, signing out...')
-        // Sign out the user immediately
+       
         await supabase.auth.signOut()
         // Clear local storage
         localStorage.removeItem(STORAGE_KEYS.AUTH_USER)
@@ -123,7 +135,8 @@ export function useAuth() {
         throw new Error('Account disabled')
       }
 
-      console.log('Database user fetched successfully')
+    
+      
       return {
         id: data.id,
         email: data.email,
@@ -141,8 +154,14 @@ export function useAuth() {
         createdAt: data.createdAt,
         updatedAt: data.updatedAt
       }
-    } catch (error) {
-      console.error('Error fetching database user:', error)
+    } catch (error: any) {
+      const elapsed = Date.now() - startTime
+      const errorMessage = error?.message || 'Unknown error'
+      
+     
+      
+     
+      
       return createMockDatabaseUser(authUser)
     }
   }
@@ -166,7 +185,6 @@ export function useAuth() {
         // Set loading false immediately - user can use cached data
         setLoading(false)
         
-        console.log('✅ Loaded user from localStorage - NO API CALL, loading: false')
       } catch (error) {
         console.error('Error loading from local storage:', error)
         hasCachedData = false
@@ -200,13 +218,13 @@ export function useAuth() {
           // Optionally update auth user in storage
           saveToStorage(session.user, JSON.parse(storedDatabaseUser!))
           setLoading(false) // Ensure loading is false
-          console.log('✅ Using cached database user - NO API CALL, loading: false')
+         
           return
         }
 
         // Only fetch from API if we DON'T have cached data
         if (!hasCachedData && isMounted) {
-          console.log('⚠️ No cached data, fetching from API...')
+       
           try {
             const dbUser = await fetchDatabaseUser(session.user)
             if (isMounted) {
@@ -263,13 +281,10 @@ export function useAuth() {
       async (event, session) => {
         if (!isMounted) return
 
-        console.log('Auth state change:', event)
-
         if (session?.user) {
           // ONLY fetch from API on SIGNED_IN event (new login)
           // For all other events (TOKEN_REFRESHED, USER_UPDATED, etc.), use cached data
           if (event === 'SIGNED_IN') {
-            console.log('🔄 SIGNED_IN event - fetching fresh data from API')
             try {
               const dbUser = await fetchDatabaseUser(session.user)
               if (isMounted) {
@@ -280,7 +295,6 @@ export function useAuth() {
                 setLoading(false) // Ensure loading is false
               }
             } catch (error: any) {
-              console.error('Error in auth state change:', error)
               if (error?.message === 'Account disabled') {
                 if (isMounted) {
                   setUser(null)
@@ -315,7 +329,7 @@ export function useAuth() {
           }
         } else {
           // SIGNED_OUT event
-          console.log('🚪 SIGNED_OUT - clearing user data')
+          
           if (isMounted) {
             setUser(null)
             setDatabaseUser(null)
@@ -348,7 +362,6 @@ export function useAuth() {
 
     try {
       const dbUser = await fetchDatabaseUser(user)
-      console.log('Refreshing database user with fresh data:', dbUser)
       setDatabaseUser(dbUser)
       saveToStorage(user, dbUser)
     } catch (error) {
@@ -361,8 +374,7 @@ export function useAuth() {
     try {
       const { data: { user: refreshedUser } } = await supabase.auth.getUser()
       if (refreshedUser) {
-        console.log('Refreshing auth user with fresh data:', refreshedUser)
-        setUser(refreshedUser)
+         setUser(refreshedUser)
         // Also refresh database user to keep them in sync
         await refreshDatabaseUser()
       }
