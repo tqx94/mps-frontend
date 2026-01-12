@@ -26,16 +26,17 @@ export default function LocationsSection() {
   return (
     <section id="Locations" className="py-12">
       <div className="container mx-auto">
-      <h2 className="text-4xl font-serif text-center">Locations & Seat Layout</h2>
+      <h2 className="text-4xl font-serif text-center mb-2">Locations & Seat Layout</h2>
    
-        <Carousel
-          settings={{
-            slidesToShow: 1,    // exactly 1 slide visible
-            slidesToScroll: 1,  // scroll 1 at a time
-            arrows: true,
-            dots: true,
-            infinite: false,
-          }}
+        <div
+          // settings={{
+          //   slidesToShow: 1,    // exactly 1 slide visible
+          //   slidesToScroll: 1,  // scroll 1 at a time
+          //   arrows: true,
+          //   dots: true,
+          //   infinite: false,
+          // }}
+      
         >
           {locations.map((loc, i) => {
             // dynamic google-maps search URL
@@ -43,23 +44,23 @@ export default function LocationsSection() {
             return (
             <div
               key={i}
-              className="w-full flex flex-col md:flex-row items-start justify-between gap-6 p-6 bg-gray-50 rounded-lg"
+              className="w-full  flex flex-col md:flex-row items-center justify-between gap-6 p-6 bg-gray-50 rounded-lg"
             >
               <Image
                 src={loc.src}
                 alt={loc.title}
                 width={600}
                 height={200}
-                className="rounded-lg flex-shrink-0"
+                className="rounded-lg flex-shrink-0 h-180 w-auto"
               />
               <div>
-                <h3 className="text-2xl font-semibold">
+                <h3 className="text-3xl lg:text-5xl font-semibold">
                   Current Location: {loc.title}
                 </h3>
                 {/* <p className="mt-2 text-gray-700">{loc.desc}</p> */}
                 <ul className="mt-2 list-disc list-inside text-gray-700 space-y-1">
                   {loc.items.map((it, j) => (
-                    <li key={j}>{it}</li>
+                    <li className='text-xl' key={j}>{it}</li>
                   ))}
                 </ul>
                 <div className="mt-6">
@@ -67,7 +68,7 @@ export default function LocationsSection() {
                       <Button
                         className="
                           inline-flex items-center 
-                          px-6 py-3 
+                          px-4 py-3 
                           bg-[#A52A2A] hover:bg-orange-500 
                           text-white 
                           rounded-full 
@@ -76,7 +77,7 @@ export default function LocationsSection() {
                           transition-all duration-200
                         "
                       >
-                        <MapPin className="w-5 h-5 mr-2" />
+                        <MapPin className="w-5 h-5 mr-0" />
                         Find us on Maps
                       </Button>
                     </Link>
@@ -85,7 +86,7 @@ export default function LocationsSection() {
               </div>
             )
           })}
-        </Carousel>
+        </div>
       </div>
     </section>
   )

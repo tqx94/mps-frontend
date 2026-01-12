@@ -1509,12 +1509,30 @@ export default function ReschedulePage() {
 
                     {/* No Seats Available Message */}
                     {!checkingSeats && newStartDate && newEndDate && availableSeats.length === 0 && (
-                      <Alert className="border-red-500 bg-red-50">
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
-                        <AlertDescription className="text-red-700">
-                          There is not enough seats for your current timeslot. Please change another timeslot.
-                        </AlertDescription>
-                      </Alert>
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center">
+                          <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                          <div>
+                            <h3 className="text-sm font-medium text-red-800">No seats available</h3>
+                            <p className="text-sm text-red-700">Please choose another time.</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Not Enough Seats Available Message */}
+                    {!checkingSeats && newStartDate && newEndDate && availableSeats.length > 0 && booking.pax > availableSeats.length && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center">
+                          <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                          <div>
+                            <h3 className="text-sm font-medium text-red-800">Not enough seats available</h3>
+                            <p className="text-sm text-red-700">
+                              There are only {availableSeats.length} seats available. Please select another timeslot.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     )}
 
                     {/* Seat Selection */}
