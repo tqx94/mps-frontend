@@ -49,8 +49,10 @@ export default function BuyNowPage() {
   const targetRole = stepParam === '3' ? null : (typeMapping[typeParam || ''] || 'MEMBER')
 
   // Check if user came from a specific page (co-learn, costudy, cowork) or from dashboard
-  const hasTypeParam = !!typeParam // If typeParam exists, user came from specific page
-  const isFromDashboard = !hasTypeParam // If no typeParam, user came from dashboard
+  // Special case: if type=student or type=costudy, treat as dashboard flow (show all packages)
+  const isStudentType = typeParam === 'student' || typeParam === 'costudy'
+  const hasTypeParam = !!typeParam && !isStudentType // If typeParam exists and is NOT student, user came from specific page
+  const isFromDashboard = !hasTypeParam || isStudentType // If no typeParam OR student type, treat as dashboard flow
 
   // Get user's effective memberType (checks verification status)
   const userMemberType = databaseUser?.memberType || 'MEMBER'
@@ -60,13 +62,14 @@ export default function BuyNowPage() {
   )
   const isStudent = effectiveMemberType === 'STUDENT'
 
-  // OLD FLOW: If user came from specific page (co-learn, costudy, cowork), use specific role packages
+  // OLD FLOW: If user came from specific page (co-learn, cowork, colearn), use specific role packages
+  // Skip this for student types - they should use dashboard flow (all packages)
   const { 
     packages: roleSpecificPackages, 
     loading: roleSpecificLoading, 
     error: roleSpecificError, 
     refetch: roleSpecificRefetch 
-  } = usePackages(hasTypeParam ? targetRole : null) // Only fetch if typeParam exists
+  } = usePackages(hasTypeParam ? targetRole : null) // Only fetch if typeParam exists and is NOT student
 
   // NEW FLOW: If user came from dashboard, fetch all packages and filter by user role
   const [allPackages, setAllPackages] = useState<NewPackage[]>([])
@@ -105,14 +108,19 @@ export default function BuyNowPage() {
       }
       
       // Filter based on user role
-      // If user is STUDENT: show all packages
+      // If user is STUDENT OR if type=student/costudy: show all packages
       // If user is NOT STUDENT: exclude STUDENT packages
       const currentIsStudent = getEffectiveMemberType(
         databaseUser?.memberType || 'MEMBER',
         databaseUser?.studentVerificationStatus
       ) === 'STUDENT'
       
-      const filteredPackages = currentIsStudent 
+      // Check if this is a student type request (need to check typeParam here since it's not in scope)
+      const currentTypeParam = searchParams.get('type')
+      const isStudentTypeRequest = currentTypeParam === 'student' || currentTypeParam === 'costudy'
+      
+      // When type=student or type=costudy, always show all packages regardless of user role
+      const filteredPackages = (currentIsStudent || isStudentTypeRequest)
         ? combinedPackages 
         : combinedPackages.filter(pkg => pkg.targetRole !== 'STUDENT')
       
@@ -123,7 +131,7 @@ export default function BuyNowPage() {
     } finally {
       setPackagesLoading(false)
     }
-  }, [isStudent, stepParam, hasTypeParam, databaseUser?.memberType, databaseUser?.studentVerificationStatus])
+  }, [isStudent, stepParam, hasTypeParam, databaseUser?.memberType, databaseUser?.studentVerificationStatus, searchParams])
 
   // Fetch packages based on user role (only for dashboard flow)
   useEffect(() => {
@@ -280,18 +288,24 @@ export default function BuyNowPage() {
     const packageParam = searchParams.get('package')
     const typeParam = searchParams.get('type')
     const stepParam = searchParams.get('step')
-    const orderIdParam = searchParams.get('orderId')
+    const orderIdParam = searchParams.get('packageId')
     const userPackageIdParam = searchParams.get('userPackageId')
     const referenceParam = searchParams.get('reference')
     const statusParam = searchParams.get('status')
 
+    // Check if this is a student type request (show all packages)
+    const isStudentTypeLocal = typeParam === 'student' || typeParam === 'costudy'
 
     // Set packageType first if available
-    if (typeParam && targetRole && packageType !== targetRole) {
+    // Don't set packageType for student types - they should see all packages
+    if (typeParam && targetRole && packageType !== targetRole && !isStudentTypeLocal) {
       setPackageType(targetRole)
+    } else if (isStudentTypeLocal && packageType) {
+      // Clear packageType for student types to show all packages
+      setPackageType('')
     }
 
-    // Priority 1: Try packageId first (most reliable)
+      // Priority 1: Try packageId first (most reliable)
     if (packageIdParam && packages.length > 0) {
       const foundPackage = packages.find(pkg => pkg.id === packageIdParam)
       if (foundPackage) {
@@ -301,7 +315,11 @@ export default function BuyNowPage() {
         }
         return // Exit early if found by ID
       } else {
-        setError(`Package not found`)
+        // Package not found in current packages list - might still be loading
+        // Don't set error immediately, wait for packages to fully load
+        if (!packagesLoadingState) {
+          setError(`Package not found`)
+        }
         return
       }
     }
@@ -423,6 +441,32 @@ export default function BuyNowPage() {
       setUserPackageId(userPackageIdParam)
     }
   }, [searchParams])
+
+  // Dedicated effect to handle packageId auto-selection after packages are loaded
+  useEffect(() => {
+    const packageIdParam = searchParams.get('packageId')
+    
+    // Only proceed if:
+    // 1. packageId is in URL
+    // 2. Packages are loaded (not loading)
+    // 3. Packages list is not empty
+    // 4. Package is not already selected
+    if (packageIdParam && !packagesLoadingState && packages.length > 0) {
+      const foundPackage = packages.find(pkg => pkg.id === packageIdParam)
+      
+      if (foundPackage) {
+        // Only update if it's a different package
+        if (!selectedPackage || selectedPackage.id !== foundPackage.id) {
+          setSelectedPackage(foundPackage)
+          setError(null)
+        }
+      } else if (!selectedPackage) {
+        // Only show error if we haven't selected anything else
+        // This prevents showing error when packages are still loading
+        setError(`Package with ID "${packageIdParam}" not found`)
+      }
+    }
+  }, [packages, packagesLoadingState, selectedPackage, searchParams])
 
   // Auto-select package when selectedPackage changes from URL parameter
   useEffect(() => {
@@ -617,7 +661,11 @@ export default function BuyNowPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {(() => {
-                              let filteredPackages = packages.filter((pkg) => !packageType || pkg.targetRole === packageType)
+                              // For student types, show all packages (no filtering)
+                              // For other types, filter by packageType if set
+                              let filteredPackages = isStudentType 
+                                ? packages 
+                                : packages.filter((pkg) => !packageType || pkg.targetRole === packageType)
                               
                               // If selected package is not in filtered results, include it
                               if (selectedPackage && !filteredPackages.find(p => p.id === selectedPackage.id)) {
