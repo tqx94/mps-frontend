@@ -1811,20 +1811,92 @@ export function BookingManagement() {
                             let matchedPayment: any = null;
                             if (activity.activityType === 'BOOKING_CREATED' || activity.activityType === 'PACKAGE_USED' || activity.activityType === 'CREDIT_USED') {
                               matchedPayment = detailData?.allPayments?.[0] || null;
+                            } else if (activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED') {
+                              // For reschedule/extend, try to find payment by matching timestamp
+                              // Also check if there's a credit used activity nearby
+                              matchedPayment = findMatchingPayment();
+                              
+                              // If no payment found, but there's metadata with additionalCost, it means credits covered it or payment is pending
+                              if (!matchedPayment && activity.metadata?.additionalCost) {
+                                // Try to find any payment that matches the bookingRef and was created around the same time
+                                const reschedulePayments = detailData?.allPayments?.filter((p: any) => 
+                                  p.bookingRef === detailData.booking?.bookingRef
+                                ) || [];
+                                // Use the most recent payment that's not the first one (first is original booking)
+                                if (reschedulePayments.length > 1) {
+                                  // Sort by date, get the one closest to activity time
+                                  const sortedPayments = reschedulePayments
+                                    .filter((p: any) => p !== reschedulePayments[0]) // Exclude first payment
+                                    .sort((a: any, b: any) => {
+                                      const aTime = new Date(a.paidAt || a.createdAt).getTime();
+                                      const bTime = new Date(b.paidAt || b.createdAt).getTime();
+                                      const activityTime = new Date(activity.createdAt).getTime();
+                                      return Math.abs(aTime - activityTime) - Math.abs(bTime - activityTime);
+                                    });
+                                  matchedPayment = sortedPayments[0] || null;
+                                }
+                              }
                             } else {
                               matchedPayment = findMatchingPayment();
                             }
 
-                            // Get payment details - check multiple possible field names
-                            // Priority: activity metadata > matched payment record
-                            const paymentAmount = matchedPayment?.amount ? parseFloat(matchedPayment.amount) : 
-                                                  matchedPayment?.totalAmount ? parseFloat(matchedPayment.totalAmount) :
-                                                  (activity.amount || null);
-                            const paymentMethod = activity.metadata?.paymentMethod || 
-                                                  matchedPayment?.paymentMethod || 
-                                                  matchedPayment?.paymentmethod || 
-                                                  null;
-                            const transactionFee = paymentAmount && paymentMethod ? calculateTransactionFee(paymentAmount, paymentMethod) : null;
+                            // Get credit amount from metadata (for reschedule/extend) or activity amount (for CREDIT_USED)
+                            const creditAmount = activity.metadata?.creditAmount || 
+                                               (activity.activityType === 'CREDIT_USED' ? (activity.amount || 0) : 0);
+
+                            // Get payment details - Priority: activity metadata > matched payment record
+                            // For reschedule/extend, use additionalCost from metadata (most reliable)
+                            let paymentAmount: number | null = null;
+                            if (activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED') {
+                              // Use additionalCost from metadata (the actual amount charged)
+                              paymentAmount = activity.metadata?.additionalCost 
+                                ? parseFloat(activity.metadata.additionalCost) 
+                                : (matchedPayment?.totalAmount ? parseFloat(matchedPayment.totalAmount) : 
+                                   matchedPayment?.amount ? parseFloat(matchedPayment.amount) : 
+                                   (activity.amount || null));
+                            } else {
+                              // For other activities, use payment record or activity amount
+                              paymentAmount = matchedPayment?.totalAmount ? parseFloat(matchedPayment.totalAmount) : 
+                                            matchedPayment?.amount ? parseFloat(matchedPayment.amount) :
+                                            (activity.amount || null);
+                            }
+
+                            // Get payment method - Priority: activity metadata (most reliable) > matched payment
+                            let paymentMethod: string | null = null;
+                            if (activity.metadata?.paymentMethod) {
+                              paymentMethod = activity.metadata.paymentMethod;
+                            } else if (matchedPayment) {
+                              paymentMethod = matchedPayment.paymentMethod || 
+                                            matchedPayment.paymentmethod || 
+                                            matchedPayment.method ||
+                                            matchedPayment.payment_type ||
+                                            matchedPayment.type ||
+                                            null;
+                            }
+
+                            // Calculate transaction fee based on actual payment amount (after credits)
+                            // Fee is calculated on the amount that was actually paid via payment method, not including credits
+                            let transactionFee: number | null = null;
+                            if (paymentAmount && paymentAmount > 0 && paymentMethod) {
+                              // For reschedule/extend, additionalCost in metadata is base amount
+                              // Payment amount might already include fee, or might be base amount
+                              // Try to calculate fee based on paymentAmount
+                              // If paymentAmount is from payment record, it might already include fee
+                              // If paymentAmount is from metadata additionalCost, it's base amount before fee
+                              if (activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED') {
+                                // For reschedule, calculate fee on (additionalCost - credits)
+                                const baseAmount = activity.metadata?.additionalCost 
+                                  ? parseFloat(activity.metadata.additionalCost) 
+                                  : paymentAmount;
+                                const amountAfterCredits = Math.max(0, baseAmount - creditAmount);
+                                transactionFee = amountAfterCredits > 0 && paymentMethod 
+                                  ? calculateTransactionFee(amountAfterCredits, paymentMethod) 
+                                  : null;
+                              } else {
+                                // For other activities, fee should be calculated on paymentAmount
+                                transactionFee = calculateTransactionFee(paymentAmount, paymentMethod);
+                              }
+                            }
 
                             return (
                               <div key={activity.id || index} className="flex gap-3">
@@ -2064,21 +2136,48 @@ export function BookingManagement() {
                                                 })()
                                               )}
 
-                                              {/* Payment Information for Reschedule/Extend - Only show if there's actual payment (not just credits) */}
-                                              {paymentAmount && paymentAmount > 0 && paymentMethod && (
+                                              {/* Payment Information for Reschedule/Extend */}
+                                              {(paymentAmount || paymentMethod || creditAmount > 0) && (
                                                 <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
-                                                  <div className="flex items-center gap-1">
-                                                    <span className="text-gray-500">Payment mode:</span>
-                                                    <span className="text-xs font-medium">{paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
-                                                  </div>
-                                                  <div className="flex items-center gap-1">
-                                                    <span className="text-gray-500">Payment amount:</span>
-                                                    <span className="text-xs text-green-600 font-medium">${paymentAmount.toFixed(2)}</span>
-                                                  </div>
-                                                  {transactionFee !== null && transactionFee > 0 && (
+                                                  {/* Show credits used if any */}
+                                                  {creditAmount > 0 && (
                                                     <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Transaction fee incurred:</span>
-                                                      <span className="text-xs text-orange-600">${transactionFee.toFixed(2)}</span>
+                                                      <span className="text-gray-500">Credits used:</span>
+                                                      <span className="text-xs text-orange-600 font-medium">${creditAmount.toFixed(2)}</span>
+                                                    </div>
+                                                  )}
+                                                  
+                                                  {/* Show payment method and amount only if payment was made (not just credits) */}
+                                                  {paymentAmount && paymentAmount > 0 && paymentMethod && (
+                                                    <>
+                                                      <div className="flex items-center gap-1">
+                                                        <span className="text-gray-500">Payment mode:</span>
+                                                        <span className="text-xs font-medium">{paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
+                                                      </div>
+                                                      <div className="flex items-center gap-1">
+                                                        <span className="text-gray-500">Payment amount:</span>
+                                                        <span className="text-xs text-green-600 font-medium">${paymentAmount.toFixed(2)}</span>
+                                                      </div>
+                                                      {transactionFee !== null && transactionFee > 0 && (
+                                                        <div className="flex items-center gap-1">
+                                                          <span className="text-gray-500">Transaction fee incurred:</span>
+                                                          <span className="text-xs text-orange-600">${transactionFee.toFixed(2)}</span>
+                                                        </div>
+                                                      )}
+                                                      {transactionFee !== null && transactionFee > 0 && paymentAmount && (
+                                                        <div className="flex items-center gap-1">
+                                                          <span className="text-gray-500">Total paid:</span>
+                                                          <span className="text-xs font-medium">${(paymentAmount + transactionFee).toFixed(2)}</span>
+                                                        </div>
+                                                      )}
+                                                    </>
+                                                  )}
+                                                  
+                                                  {/* Show total cost (base amount before credits) */}
+                                                  {activity.metadata?.rescheduleCost && parseFloat(activity.metadata.rescheduleCost) > 0 && (
+                                                    <div className="flex items-center gap-1 pt-1 border-t border-gray-100">
+                                                      <span className="text-gray-500">Total reschedule cost:</span>
+                                                      <span className="text-xs font-medium">${parseFloat(activity.metadata.rescheduleCost).toFixed(2)}</span>
                                                     </div>
                                                   )}
                                                 </div>
@@ -2154,8 +2253,24 @@ export function BookingManagement() {
                                               )}
                                               
                                               {/* Payment Information for Booking Creation */}
-                                              {(paymentAmount || paymentMethod) && (
+                                              {(paymentAmount || paymentMethod || (detailData?.booking?.discountAmount && parseFloat(detailData.booking.discountAmount) > 0)) && (
                                                 <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
+                                                  {/* Show promo code discount if available */}
+                                                  {detailData?.booking?.discountAmount && parseFloat(detailData.booking.discountAmount) > 0 && (
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-gray-500">Promo code discount:</span>
+                                                      <span className="text-xs text-green-600 font-medium">-${parseFloat(detailData.booking.discountAmount).toFixed(2)}</span>
+                                                    </div>
+                                                  )}
+                                                  
+                                                  {/* Show credits used if any */}
+                                                  {creditAmount > 0 && (
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-gray-500">Credits used:</span>
+                                                      <span className="text-xs text-orange-600 font-medium">${creditAmount.toFixed(2)}</span>
+                                                    </div>
+                                                  )}
+                                                  
                                                   {paymentMethod && (
                                                     <div className="flex items-center gap-1">
                                                       <span className="text-gray-500">Payment mode:</span>
@@ -2172,6 +2287,14 @@ export function BookingManagement() {
                                                     <div className="flex items-center gap-1">
                                                       <span className="text-gray-500">Transaction fee incurred:</span>
                                                       <span className="text-xs text-orange-600">${transactionFee.toFixed(2)}</span>
+                                                    </div>
+                                                  )}
+                                                  
+                                                  {/* Show total booking cost (base amount before discounts/credits) */}
+                                                  {detailData?.booking?.totalCost && parseFloat(detailData.booking.totalCost) > 0 && (
+                                                    <div className="flex items-center gap-1 pt-1 border-t border-gray-100">
+                                                      <span className="text-gray-500">Total booking cost:</span>
+                                                      <span className="text-xs font-medium">${parseFloat(detailData.booking.totalCost).toFixed(2)}</span>
                                                     </div>
                                                   )}
                                                 </div>
