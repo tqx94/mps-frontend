@@ -159,6 +159,8 @@ export default function BuyNowPage() {
   
   // Track if we've already restored from localStorage (to prevent re-triggering)
   const hasRestoredFromStorage = useRef(false)
+  // Track if user manually selected a package (to prevent URL params from overriding)
+  const userManuallySelected = useRef(false)
   
   // Save selected package to localStorage when it changes
   useEffect(() => {
@@ -288,24 +290,42 @@ export default function BuyNowPage() {
     const packageParam = searchParams.get('package')
     const typeParam = searchParams.get('type')
     const stepParam = searchParams.get('step')
-    const orderIdParam = searchParams.get('packageId')
+    const packageIdParam = searchParams.get('packageId')
     const userPackageIdParam = searchParams.get('userPackageId')
     const referenceParam = searchParams.get('reference')
     const statusParam = searchParams.get('status')
 
     // Check if this is a student type request (show all packages)
     const isStudentTypeLocal = typeParam === 'student' || typeParam === 'costudy'
+    
+    // Check if user is actually a student (for cases where they navigate without type param)
+    const userIsStudent = getEffectiveMemberType(
+      databaseUser?.memberType || 'MEMBER',
+      databaseUser?.studentVerificationStatus
+    ) === 'STUDENT'
 
     // Set packageType first if available
-    // Don't set packageType for student types - they should see all packages
-    if (typeParam && targetRole && packageType !== targetRole && !isStudentTypeLocal) {
+    // Don't set packageType for student types OR if user is a student - they should see all packages
+    if (typeParam && targetRole && packageType !== targetRole && !isStudentTypeLocal && !userIsStudent) {
       setPackageType(targetRole)
-    } else if (isStudentTypeLocal && packageType) {
-      // Clear packageType for student types to show all packages
+    } else if ((isStudentTypeLocal || userIsStudent) && packageType) {
+      // Clear packageType for student types or students to show all packages
       setPackageType('')
     }
 
-      // Priority 1: Try packageId first (most reliable)
+    // CRITICAL: Only auto-select from URL params if:
+    // 1. User hasn't manually selected AND
+    // 2. There's actually a URL param (packageId or package name)
+    if (userManuallySelected.current) {
+      return // Skip auto-selection if user manually selected
+    }
+
+    // Only proceed if there's a URL param to process
+    if (!packageIdParam && !packageParam) {
+      return // No URL params, don't do anything
+    }
+
+    // Priority 1: Try packageId first (most reliable)
     if (packageIdParam && packages.length > 0) {
       const foundPackage = packages.find(pkg => pkg.id === packageIdParam)
       if (foundPackage) {
@@ -356,7 +376,7 @@ export default function BuyNowPage() {
       }
     } else if (packageParam && packages.length === 0) {
     }
-  }, [searchParams, packages, targetRole])
+  }, [searchParams, packages, targetRole, packagesLoadingState, databaseUser?.memberType, databaseUser?.studentVerificationStatus, packageType])
 
   // Separate effect for localStorage restoration (runs once when packages load)
   useEffect(() => {
@@ -409,6 +429,11 @@ export default function BuyNowPage() {
 
   // Auto-select first package when coming from dashboard (no typeParam)
   useEffect(() => {
+    // Don't auto-select if user has manually selected
+    if (userManuallySelected.current) {
+      return
+    }
+    
     const packageParam = searchParams.get('package')
     const packageIdParam = searchParams.get('packageId')
     
@@ -430,11 +455,7 @@ export default function BuyNowPage() {
     const userPackageIdParam = searchParams.get('userPackageId')
 
     if (stepParam === '3' && orderIdParam && userPackageIdParam) {
-      console.log('Step 3 detected, setting up confirmation:', {
-        stepParam,
-        orderIdParam,
-        userPackageIdParam
-      })
+     
 
       setPurchaseStep(3)
       setOrderId(orderIdParam)
@@ -444,6 +465,11 @@ export default function BuyNowPage() {
 
   // Dedicated effect to handle packageId auto-selection after packages are loaded
   useEffect(() => {
+    // Don't auto-select if user has manually selected
+    if (userManuallySelected.current) {
+      return
+    }
+    
     const packageIdParam = searchParams.get('packageId')
     
     // Only proceed if:
@@ -647,12 +673,18 @@ export default function BuyNowPage() {
                       <div>
                         <Label>Select Package</Label>
                         <Select
-                          key={selectedPackage?.id || 'empty'}
-                          value={selectedPackage?.id || ''}
+                          value={String(selectedPackage?.id || '')}
                           onValueChange={(value) => {
                             if (value) {
-                              const packageData = packages.find(pkg => pkg.id === value)
-                              setSelectedPackage(packageData || null)
+                              // Mark that user manually selected FIRST (before state update)
+                              userManuallySelected.current = true
+                              
+                              // Find package in all packages - compare as strings
+                              const packageData = packages.find(pkg => String(pkg.id) === String(value))
+                              
+                              if (packageData) {
+                                setSelectedPackage(packageData)
+                              }
                             }
                           }}
                         >
@@ -661,9 +693,10 @@ export default function BuyNowPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {(() => {
-                              // For student types, show all packages (no filtering)
+                              // For student types OR if user is a student, show all packages (no filtering)
                               // For other types, filter by packageType if set
-                              let filteredPackages = isStudentType 
+                              const shouldShowAllPackages = isStudentType || isStudent
+                              let filteredPackages = shouldShowAllPackages
                                 ? packages 
                                 : packages.filter((pkg) => !packageType || pkg.targetRole === packageType)
                               
@@ -676,9 +709,12 @@ export default function BuyNowPage() {
                               if (filteredPackages.length === 0) {
                                 return <div className="p-2 text-sm text-gray-500">No packages available</div>
                               }
-
+                              
                               return filteredPackages.map((pkg) => (
-                                <SelectItem key={pkg.id} value={pkg.id}>
+                                <SelectItem 
+                                  key={pkg.id} 
+                                  value={String(pkg.id)}
+                                >
                                   {pkg.name}
                                 </SelectItem>
                               ))
