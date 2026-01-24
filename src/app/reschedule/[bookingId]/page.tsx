@@ -1291,10 +1291,10 @@ export default function ReschedulePage() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Button>
-            <div>⚠ Unable to reschedule - This booking period overlaps with shop closure/vacation hours. Please select another timeslot
+            {/* <div>⚠ Unable to reschedule - This booking period overlaps with shop closure/vacation hours. Please select another timeslot */}
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Reschedule Booking</h1>
               <p className="text-sm sm:text-base text-gray-600">Reference: {booking.bookingRef}</p>
-            </div>
+            {/* </div> */}
           </div>
 
           {/* Progress Steps */}

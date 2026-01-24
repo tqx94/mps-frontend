@@ -97,6 +97,32 @@ export function BookingManagement() {
   const [activities, setActivities] = useState<any[]>([])
   const [loadingActivities, setLoadingActivities] = useState(false)
 
+  // Payment fee settings (dynamic; used in Audit display)
+  const [paymentFeeSettings, setPaymentFeeSettings] = useState({
+    paynowFee: 0.20,
+    creditCardFeePercentage: 5.0,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { getPaymentSettings } = await import('@/lib/paymentSettingsService')
+        const settings = await getPaymentSettings()
+        if (cancelled) return
+        setPaymentFeeSettings({
+          paynowFee: settings.PAYNOW_TRANSACTION_FEE,
+          creditCardFeePercentage: settings.CREDIT_CARD_TRANSACTION_FEE_PERCENTAGE,
+        })
+      } catch (e) {
+        // Keep fallback defaults if settings cannot be loaded
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // Booking Timeline Modal state
   const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false)
   const [selectedBookingRef, setSelectedBookingRef] = useState('')
@@ -1720,28 +1746,7 @@ export function BookingManagement() {
 
               {/* User Activity + Audit */}
               <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                {/* <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">User Activity</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div className="text-gray-500">Total Bookings</div><div>{detailData.userStats?.totalBookings ?? '-'}</div>
-                <div className="text-gray-500">Total Spent</div><div>{detailData.userStats ? `$${detailData.userStats.totalSpent.toFixed(2)}` : '-'}</div>
-                <div className="text-gray-500">Last Booking</div><div>{detailData.userStats?.lastBookingAt ? formatBookingDate(detailData.userStats.lastBookingAt) : '-'}</div>
-                <div className="text-gray-500">Recent Bookings</div>
-                <div className="space-y-1">
-                  {Array.isArray(detailData.recentBookings) && detailData.recentBookings.length > 0 ? (
-                    detailData.recentBookings.map((b: any) => (
-                      <div key={b.id} className="text-xs flex items-center justify-between gap-2">
-                        <span className="font-mono">{b.bookingRef}</span>
-                        </div>
-                    ))
-                  ) : (
-                    <span className="text-gray-400">No recent bookings</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card> */}
+               
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm">Audit</CardTitle>
@@ -1769,132 +1774,144 @@ export function BookingManagement() {
                       ) : activities && activities.length > 0 ? (
                         <div className="space-y-3 max-h-96 overflow-y-auto">
                           {activities.map((activity: any, index: number) => {
-                            // Helper function to calculate transaction fee based on payment method and amount
-                            const calculateTransactionFee = (amount: number, paymentMethod?: string): number => {
-                              if (!amount || amount <= 0) return 0;
-                              
-                              if (!paymentMethod) return 0;
-                              
-                              const method = paymentMethod.toLowerCase();
-                              
-                              // PayNow: $0.20 for amounts < $10, $0 for >= $10
-                              if (method.includes('paynow') || method.includes('pay_now')) {
-                                return amount < 10 ? 0.20 : 0;
-                              }
-                              
-                              // Credit Card: Typically 5% (or configured percentage)
-                              if (method.includes('card') || method.includes('credit')) {
-                                // Default 5%, but could be from settings
-                                const cardFeePercentage = 5.0;
-                                return (amount * cardFeePercentage) / 100;
-                              }
-                              
-                              return 0;
-                            };
+                            // -------- Audit helpers (best-effort, deterministic; no hardcoded fees) --------
+                            const normalizePaymentMethod = (method?: string | null) => {
+                              if (!method) return null
+                              console.log(activity , 'activity')
+                              const m = String(method).toLowerCase()
+                              if (m.includes('paynow') || m.includes('pay_now')) return 'paynow'
+                              if (m === 'card' || m.includes('credit') || m.includes('card')) return 'card'
+                              if (m.includes('credit')) return 'card'
+                              if (m.includes('credits')) return 'credits'
+                              return m
+                            }
 
-                            // Match activity with payment based on timestamp
-                            const findMatchingPayment = (): any => {
-                              if (!detailData?.allPayments || !activity.createdAt) return null;
-                              
-                              return detailData.allPayments.find((payment: any) => {
-                                if (!payment.createdAt && !payment.paidAt) return false;
-                                
-                                const activityTime = new Date(activity.createdAt).getTime();
-                                const paymentTime = new Date(payment.paidAt || payment.createdAt).getTime();
-                                
-                                // Match if within 2 minutes (120000ms)
-                                return Math.abs(activityTime - paymentTime) < 120000;
-                              });
-                            };
+                            const formatPaymentMethod = (method?: string | null) => {
+                              const m = normalizePaymentMethod(method)
+                              if (!m) return null
+                              if (m === 'paynow') return 'PayNow'
+                              if (m === 'card') return 'Credit Card'
+                              if (m === 'credits') return 'Credits'
+                              return String(method).replace(/_/g, ' ')
+                            }
 
-                            // For BOOKING_CREATED, use first payment (original booking payment)
-                            let matchedPayment: any = null;
-                            if (activity.activityType === 'BOOKING_CREATED' || activity.activityType === 'PACKAGE_USED' || activity.activityType === 'CREDIT_USED') {
-                              matchedPayment = detailData?.allPayments?.[0] || null;
+                            const round2 = (n: number) => Math.round(n * 100) / 100
+
+                            const computeFeeFromSubtotal = (subtotal: number, method?: string | null) => {
+                              const normalized = normalizePaymentMethod(method)
+                              if (!subtotal || subtotal <= 0 || !normalized) return 0
+                              if (normalized === 'paynow') {
+                                return subtotal < 10 ? (paymentFeeSettings.paynowFee || 0) : 0
+                              }
+                              if (normalized === 'card') {
+                                const pct = paymentFeeSettings.creditCardFeePercentage || 0
+                                return (subtotal * pct) / 100
+                              }
+                              return 0
+                            }
+
+                            // Compute fee breakdown from a final charged total (when only total is known)
+                            const computeBreakdownFromFinalTotal = (finalTotal: number, method?: string | null) => {
+                              const normalized = normalizePaymentMethod(method)
+                              if (!finalTotal || finalTotal <= 0 || !normalized) {
+                                return { subtotal: finalTotal || 0, fee: 0, total: finalTotal || 0 }
+                              }
+
+                              if (normalized === 'card') {
+                                const pct = paymentFeeSettings.creditCardFeePercentage || 0
+                                const multiplier = 1 + pct / 100
+                                const subtotal = multiplier > 0 ? finalTotal / multiplier : finalTotal
+                                const fee = finalTotal - subtotal
+                                return { subtotal: round2(subtotal), fee: round2(fee), total: round2(finalTotal) }
+                              }
+
+                              if (normalized === 'paynow') {
+                                const paynowFee = paymentFeeSettings.paynowFee || 0
+                                const fee = finalTotal < 10 ? paynowFee : 0
+                                const subtotal = finalTotal - fee
+                                return { subtotal: round2(subtotal), fee: round2(fee), total: round2(finalTotal) }
+                              }
+
+                              return { subtotal: round2(finalTotal), fee: 0, total: round2(finalTotal) }
+                            }
+
+                            // -------- Activity-specific money extraction (prefer metadata / booking snapshot) --------
+                            const booking = detailData?.booking
+                            const firstPayment = detailData?.allPayments?.[0]
+
+                            const creditAmount =
+                              (activity?.metadata?.creditAmount != null ? Number(activity.metadata.creditAmount) : null) ??
+                              (activity.activityType === 'CREDIT_USED' ? Number(activity.amount || 0) : 0)
+
+                            let paymentMethodRaw: string | null =
+                              activity?.metadata?.paymentMethod ||
+                              (activity.activityType === 'BOOKING_CREATED' ? (firstPayment?.paymentMethod || firstPayment?.method || null) : null)
+
+                            // For reschedule/extend, method should be in metadata (backend sets it on confirm)
+                            if ((activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED') && !paymentMethodRaw) {
+                              paymentMethodRaw = null
+                            }
+
+                            // Build a consistent breakdown for display
+                            let breakdown: { base?: number; discount?: number; credits?: number; subtotal: number; fee: number; total: number } | null = null
+
+                            if (activity.activityType === 'BOOKING_CREATED' && booking) {
+                              // Booking snapshot is the source of truth
+                              const base = Number(booking.totalCost || 0)
+                              const discount = Number(booking.discountAmount ?? booking.discountamount ?? 0)
+                              const finalTotal = Number(booking.totalAmount || 0)
+                              const { subtotal, fee, total } = computeBreakdownFromFinalTotal(finalTotal, paymentMethodRaw)
+                              breakdown = {
+                                base: round2(base),
+                                discount: round2(discount),
+                                credits: 0, // credits are shown via separate CREDIT_USED activity
+                                subtotal,
+                                fee,
+                                total,
+                              }
+                            } else if (activity.activityType === 'PROMO_APPLIED') {
+                              // Promo is its own event; show discount only
+                              breakdown = {
+                                base: 0,
+                                discount: round2(Number(activity.amount || 0)),
+                                credits: 0,
+                                subtotal: 0,
+                                fee: 0,
+                                total: 0,
+                              }
+                            } else if (activity.activityType === 'CREDIT_USED') {
+                              breakdown = {
+                                base: 0,
+                                discount: 0,
+                                credits: round2(Number(activity.amount || 0)),
+                                subtotal: 0,
+                                fee: 0,
+                                total: 0,
+                              }
                             } else if (activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED') {
-                              // For reschedule/extend, try to find payment by matching timestamp
-                              // Also check if there's a credit used activity nearby
-                              matchedPayment = findMatchingPayment();
-                              
-                              // If no payment found, but there's metadata with additionalCost, it means credits covered it or payment is pending
-                              if (!matchedPayment && activity.metadata?.additionalCost) {
-                                // Try to find any payment that matches the bookingRef and was created around the same time
-                                const reschedulePayments = detailData?.allPayments?.filter((p: any) => 
-                                  p.bookingRef === detailData.booking?.bookingRef
-                                ) || [];
-                                // Use the most recent payment that's not the first one (first is original booking)
-                                if (reschedulePayments.length > 1) {
-                                  // Sort by date, get the one closest to activity time
-                                  const sortedPayments = reschedulePayments
-                                    .filter((p: any) => p !== reschedulePayments[0]) // Exclude first payment
-                                    .sort((a: any, b: any) => {
-                                      const aTime = new Date(a.paidAt || a.createdAt).getTime();
-                                      const bTime = new Date(b.paidAt || b.createdAt).getTime();
-                                      const activityTime = new Date(activity.createdAt).getTime();
-                                      return Math.abs(aTime - activityTime) - Math.abs(bTime - activityTime);
-                                    });
-                                  matchedPayment = sortedPayments[0] || null;
-                                }
+                              const base = Number(activity?.metadata?.additionalCost ?? activity?.metadata?.rescheduleCost ?? activity.amount ?? 0)
+                              const credits = round2(Number(creditAmount || 0))
+                              const subtotal = Math.max(0, base - credits)
+                              const fee = computeFeeFromSubtotal(subtotal, paymentMethodRaw)
+                              const total = subtotal + fee
+                              breakdown = {
+                                base: round2(base),
+                                discount: 0,
+                                credits,
+                                subtotal: round2(subtotal),
+                                fee: round2(fee),
+                                total: round2(total),
                               }
                             } else {
-                              matchedPayment = findMatchingPayment();
-                            }
-
-                            // Get credit amount from metadata (for reschedule/extend) or activity amount (for CREDIT_USED)
-                            const creditAmount = activity.metadata?.creditAmount || 
-                                               (activity.activityType === 'CREDIT_USED' ? (activity.amount || 0) : 0);
-
-                            // Get payment details - Priority: activity metadata > matched payment record
-                            // For reschedule/extend, use additionalCost from metadata (most reliable)
-                            let paymentAmount: number | null = null;
-                            if (activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED') {
-                              // Use additionalCost from metadata (the actual amount charged)
-                              paymentAmount = activity.metadata?.additionalCost 
-                                ? parseFloat(activity.metadata.additionalCost) 
-                                : (matchedPayment?.totalAmount ? parseFloat(matchedPayment.totalAmount) : 
-                                   matchedPayment?.amount ? parseFloat(matchedPayment.amount) : 
-                                   (activity.amount || null));
-                            } else {
-                              // For other activities, use payment record or activity amount
-                              paymentAmount = matchedPayment?.totalAmount ? parseFloat(matchedPayment.totalAmount) : 
-                                            matchedPayment?.amount ? parseFloat(matchedPayment.amount) :
-                                            (activity.amount || null);
-                            }
-
-                            // Get payment method - Priority: activity metadata (most reliable) > matched payment
-                            let paymentMethod: string | null = null;
-                            if (activity.metadata?.paymentMethod) {
-                              paymentMethod = activity.metadata.paymentMethod;
-                            } else if (matchedPayment) {
-                              paymentMethod = matchedPayment.paymentMethod || 
-                                            matchedPayment.paymentmethod || 
-                                            matchedPayment.method ||
-                                            matchedPayment.payment_type ||
-                                            matchedPayment.type ||
-                                            null;
-                            }
-
-                            // Calculate transaction fee based on actual payment amount (after credits)
-                            // Fee is calculated on the amount that was actually paid via payment method, not including credits
-                            let transactionFee: number | null = null;
-                            if (paymentAmount && paymentAmount > 0 && paymentMethod) {
-                              // For reschedule/extend, additionalCost in metadata is base amount
-                              // Payment amount might already include fee, or might be base amount
-                              // Try to calculate fee based on paymentAmount
-                              // If paymentAmount is from payment record, it might already include fee
-                              // If paymentAmount is from metadata additionalCost, it's base amount before fee
-                              if (activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED') {
-                                // For reschedule, calculate fee on (additionalCost - credits)
-                                const baseAmount = activity.metadata?.additionalCost 
-                                  ? parseFloat(activity.metadata.additionalCost) 
-                                  : paymentAmount;
-                                const amountAfterCredits = Math.max(0, baseAmount - creditAmount);
-                                transactionFee = amountAfterCredits > 0 && paymentMethod 
-                                  ? calculateTransactionFee(amountAfterCredits, paymentMethod) 
-                                  : null;
-                              } else {
-                                // For other activities, fee should be calculated on paymentAmount
-                                transactionFee = calculateTransactionFee(paymentAmount, paymentMethod);
+                              // Default: show activity.amount if present (non-payment event)
+                              const amt = Number(activity.amount || 0)
+                              breakdown = {
+                                base: 0,
+                                discount: 0,
+                                credits: 0,
+                                subtotal: round2(amt),
+                                fee: 0,
+                                total: round2(amt),
                               }
                             }
 
@@ -2137,49 +2154,53 @@ export function BookingManagement() {
                                               )}
 
                                               {/* Payment Information for Reschedule/Extend */}
-                                              {(paymentAmount || paymentMethod || creditAmount > 0) && (
+                                              {(breakdown || paymentMethodRaw || creditAmount > 0) && (
                                                 <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
-                                                  {/* Show credits used if any */}
-                                                  {creditAmount > 0 && (
+                                                  {/* Credits used */}
+                                                  {breakdown?.credits && breakdown.credits > 0 && (
                                                     <div className="flex items-center gap-1">
                                                       <span className="text-gray-500">Credits used:</span>
-                                                      <span className="text-xs text-orange-600 font-medium">${creditAmount.toFixed(2)}</span>
+                                                      <span className="text-xs text-orange-600 font-medium">${breakdown.credits.toFixed(2)}</span>
                                                     </div>
                                                   )}
                                                   
-                                                  {/* Show payment method and amount only if payment was made (not just credits) */}
-                                                  {paymentAmount && paymentAmount > 0 && paymentMethod && (
+                                                  {/* Payment method */}
+                                                  {formatPaymentMethod(paymentMethodRaw) && (
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-gray-500">Payment mode:</span>
+                                                      <span className="text-xs font-medium">{formatPaymentMethod(paymentMethodRaw)}</span>
+                                                    </div>
+                                                  )}
+
+                                                  {/* Amounts */}
+                                                  {breakdown && (activity.activityType === 'RESCHEDULE_APPROVED' || activity.activityType === 'EXTEND_APPROVED') && (
                                                     <>
                                                       <div className="flex items-center gap-1">
-                                                        <span className="text-gray-500">Payment mode:</span>
-                                                        <span className="text-xs font-medium">{paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
+                                                        <span className="text-gray-500">Base cost:</span>
+                                                        <span className="text-xs font-medium">${(breakdown.base || 0).toFixed(2)}</span>
                                                       </div>
                                                       <div className="flex items-center gap-1">
-                                                        <span className="text-gray-500">Payment amount:</span>
-                                                        <span className="text-xs text-green-600 font-medium">${paymentAmount.toFixed(2)}</span>
+                                                        <span className="text-gray-500">Subtotal (after credits):</span>
+                                                        <span className="text-xs text-green-600 font-medium">${breakdown.subtotal.toFixed(2)}</span>
                                                       </div>
-                                                      {transactionFee !== null && transactionFee > 0 && (
+                                                      {breakdown.fee > 0 && (
                                                         <div className="flex items-center gap-1">
                                                           <span className="text-gray-500">Transaction fee incurred:</span>
-                                                          <span className="text-xs text-orange-600">${transactionFee.toFixed(2)}</span>
+                                                          <span className="text-xs text-orange-600">${breakdown.fee.toFixed(2)}</span>
                                                         </div>
                                                       )}
-                                                      {transactionFee !== null && transactionFee > 0 && paymentAmount && (
+                                                      <div className="flex items-center gap-1">
+                                                        <span className="text-gray-500">Total paid:</span>
+                                                        <span className="text-xs font-medium">${breakdown.total.toFixed(2)}</span>
+                                                      </div>
+                                                      {breakdown.subtotal === 0 && (breakdown.credits || 0) > 0 && (
                                                         <div className="flex items-center gap-1">
-                                                          <span className="text-gray-500">Total paid:</span>
-                                                          <span className="text-xs font-medium">${(paymentAmount + transactionFee).toFixed(2)}</span>
+                                                          <span className="text-xs text-gray-500">Fully covered by credits</span>
                                                         </div>
                                                       )}
                                                     </>
                                                   )}
                                                   
-                                                  {/* Show total cost (base amount before credits) */}
-                                                  {activity.metadata?.rescheduleCost && parseFloat(activity.metadata.rescheduleCost) > 0 && (
-                                                    <div className="flex items-center gap-1 pt-1 border-t border-gray-100">
-                                                      <span className="text-gray-500">Total reschedule cost:</span>
-                                                      <span className="text-xs font-medium">${parseFloat(activity.metadata.rescheduleCost).toFixed(2)}</span>
-                                                    </div>
-                                                  )}
                                                 </div>
                                               )}
                                             </div>
@@ -2253,48 +2274,38 @@ export function BookingManagement() {
                                               )}
                                               
                                               {/* Payment Information for Booking Creation */}
-                                              {(paymentAmount || paymentMethod || (detailData?.booking?.discountAmount && parseFloat(detailData.booking.discountAmount) > 0)) && (
+                                              {(breakdown || formatPaymentMethod(paymentMethodRaw)) && (
                                                 <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-gray-200">
-                                                  {/* Show promo code discount if available */}
-                                                  {detailData?.booking?.discountAmount && parseFloat(detailData.booking.discountAmount) > 0 && (
+                                                  {breakdown?.base != null && breakdown.base > 0 && (
                                                     <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Promo code discount:</span>
-                                                      <span className="text-xs text-green-600 font-medium">-${parseFloat(detailData.booking.discountAmount).toFixed(2)}</span>
+                                                      <span className="text-gray-500">Base cost:</span>
+                                                      <span className="text-xs font-medium">${breakdown.base.toFixed(2)}</span>
                                                     </div>
                                                   )}
                                                   
-                                                  {/* Show credits used if any */}
-                                                  {creditAmount > 0 && (
+                                                  {breakdown?.discount != null && breakdown.discount > 0 && (
                                                     <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Credits used:</span>
-                                                      <span className="text-xs text-orange-600 font-medium">${creditAmount.toFixed(2)}</span>
+                                                      <span className="text-gray-500">Promo discount:</span>
+                                                      <span className="text-xs text-green-600 font-medium">-${breakdown.discount.toFixed(2)}</span>
                                                     </div>
                                                   )}
                                                   
-                                                  {paymentMethod && (
+                                                  {formatPaymentMethod(paymentMethodRaw) && (
                                                     <div className="flex items-center gap-1">
                                                       <span className="text-gray-500">Payment mode:</span>
-                                                      <span className="text-xs font-medium">{paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
+                                                      <span className="text-xs font-medium">{formatPaymentMethod(paymentMethodRaw)}</span>
                                                     </div>
                                                   )}
-                                                  {paymentAmount && paymentAmount > 0 && (
+                                                  {breakdown && breakdown.total > 0 && (
                                                     <div className="flex items-center gap-1">
-                                                      <span className="text-gray-500">Payment amount:</span>
-                                                      <span className="text-xs text-green-600 font-medium">${paymentAmount.toFixed(2)}</span>
+                                                      <span className="text-gray-500">Total paid:</span>
+                                                      <span className="text-xs text-green-600 font-medium">${breakdown.total.toFixed(2)}</span>
                                                     </div>
                                                   )}
-                                                  {transactionFee !== null && transactionFee > 0 && (
+                                                  {breakdown && breakdown.fee > 0 && (
                                                     <div className="flex items-center gap-1">
                                                       <span className="text-gray-500">Transaction fee incurred:</span>
-                                                      <span className="text-xs text-orange-600">${transactionFee.toFixed(2)}</span>
-                                                    </div>
-                                                  )}
-                                                  
-                                                  {/* Show total booking cost (base amount before discounts/credits) */}
-                                                  {detailData?.booking?.totalCost && parseFloat(detailData.booking.totalCost) > 0 && (
-                                                    <div className="flex items-center gap-1 pt-1 border-t border-gray-100">
-                                                      <span className="text-gray-500">Total booking cost:</span>
-                                                      <span className="text-xs font-medium">${parseFloat(detailData.booking.totalCost).toFixed(2)}</span>
+                                                      <span className="text-xs text-orange-600">${breakdown.fee.toFixed(2)}</span>
                                                     </div>
                                                   )}
                                                 </div>
@@ -2305,8 +2316,8 @@ export function BookingManagement() {
                                           )}
                                         </div>
                                       )}
-                                      {/* Show amount if no payment details found */}
-                                      {activity.amount && activity.amount > 0 && !paymentAmount && (
+                                      {/* Show amount if no richer breakdown is available */}
+                                      {activity.amount && activity.amount > 0 && (!breakdown || breakdown.total === 0) && (
                                         <p className="text-xs text-green-600 font-medium mt-0.5">
                                           ${activity.amount.toFixed(2)}
                                         </p>
