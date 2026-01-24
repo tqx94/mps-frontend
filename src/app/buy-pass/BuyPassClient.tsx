@@ -693,12 +693,22 @@ export default function BuyNowPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {(() => {
-                              // For student types OR if user is a student, show all packages (no filtering)
-                              // For other types, filter by packageType if set
-                              const shouldShowAllPackages = isStudentType || isStudent
-                              let filteredPackages = shouldShowAllPackages
-                                ? packages 
-                                : packages.filter((pkg) => !packageType || pkg.targetRole === packageType)
+                              // If memberType=STUDENT → show ALL packages
+                              // If memberType !== STUDENT → filter out student packages
+                              let filteredPackages: typeof packages
+                              
+                              if (isStudent) {
+                                // User is STUDENT → show all packages
+                                filteredPackages = packages
+                              } else {
+                                // User is NOT STUDENT → exclude student packages
+                                filteredPackages = packages.filter((pkg) => pkg.targetRole !== 'STUDENT')
+                                
+                                // Also apply packageType filter if set (for old flow compatibility)
+                                if (packageType) {
+                                  filteredPackages = filteredPackages.filter((pkg) => pkg.targetRole === packageType)
+                                }
+                              }
                               
                               // If selected package is not in filtered results, include it
                               if (selectedPackage && !filteredPackages.find(p => p.id === selectedPackage.id)) {
