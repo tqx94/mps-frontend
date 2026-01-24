@@ -56,12 +56,23 @@ export function UserPackages({ userId }: UserPackagesProps) {
       databaseUser?.studentVerificationStatus
     )
     const isStudent = effectiveMemberType === 'STUDENT'
+    const isStudentPackage = pkg.targetRole === 'STUDENT'
+    
+    // If user clicks on student package but user is not a student, don't pass package info in URL
+    // This will let BuyPassClient auto-select first available non-student package
+    if (isStudentPackage && !isStudent) {
+      const params = new URLSearchParams({
+        memberType: effectiveMemberType
+      })
+      return `/buy-pass?${params.toString()}`
+    }
     
     // If user is student, don't pass type parameter (so dashboard flow shows all packages)
     // Otherwise, pass type parameter (old flow with specific role packages)
     const params = new URLSearchParams({
       package: pkg.packageName,
-      packageId: pkg.packageId
+      packageId: pkg.packageId,
+      memberType: effectiveMemberType // Add memberType to URL params
     })
     
     if (!isStudent) {
