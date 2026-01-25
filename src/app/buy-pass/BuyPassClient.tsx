@@ -121,9 +121,13 @@ export default function BuyNowPage() {
       // Check if this is a student type request (need to check typeParam here since it's not in scope)
       const currentTypeParam = searchParams.get('type')
       const isStudentTypeRequest = currentTypeParam === 'student' || currentTypeParam === 'costudy'
+      const memberTypeParam = searchParams.get('memberType')
+      const memberTypeFromUrl = memberTypeParam ? memberTypeParam.toUpperCase() : null
+      const isStudentFromUrl = memberTypeFromUrl === 'STUDENT'
       
       // When type=student or type=costudy, always show all packages regardless of user role
-      const filteredPackages = (currentIsStudent || isStudentTypeRequest)
+      // Also when memberType=STUDENT is passed in URL
+      const filteredPackages = (currentIsStudent || isStudentTypeRequest || isStudentFromUrl)
         ? combinedPackages 
         : combinedPackages.filter(pkg => pkg.targetRole !== 'STUDENT')
       
@@ -301,11 +305,13 @@ export default function BuyNowPage() {
     // Check if this is a student type request (show all packages)
     const isStudentTypeLocal = typeParam === 'student' || typeParam === 'costudy'
     
+    const memberTypeParam = searchParams.get('memberType')
+    const memberTypeFromUrl = memberTypeParam ? memberTypeParam.toUpperCase() : null
     // Check if user is actually a student (for cases where they navigate without type param)
     const userIsStudent = getEffectiveMemberType(
       databaseUser?.memberType || 'MEMBER',
       databaseUser?.studentVerificationStatus
-    ) === 'STUDENT'
+    ) === 'STUDENT' || memberTypeFromUrl === 'STUDENT'
 
     // Set packageType first if available
     // Don't set packageType for student types OR if user is a student - they should see all packages
