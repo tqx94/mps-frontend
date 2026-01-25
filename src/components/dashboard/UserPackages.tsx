@@ -47,6 +47,19 @@ export function UserPackages({ userId }: UserPackagesProps) {
     return roleMapping[targetRole] || 'cowork'
   }
 
+  // Build base URL for buy-pass without package info
+  const getBuyPassBaseUrl = (): string => {
+    const userMemberType = databaseUser?.memberType || 'MEMBER'
+    const effectiveMemberType = getEffectiveMemberType(
+      userMemberType,
+      databaseUser?.studentVerificationStatus
+    )
+    const params = new URLSearchParams({
+      memberType: effectiveMemberType
+    })
+    return `/buy-pass?${params.toString()}`
+  }
+
   // Build URL for buy-pass page with package info
   const getBuyPassUrl = (pkg: UserPackage): string => {
     // Check if user is a verified student
@@ -276,7 +289,7 @@ export function UserPackages({ userId }: UserPackagesProps) {
             <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No packages found</h3>
             <p className="text-gray-600 mb-4">You don't have any packages yet.</p>
-            <Button onClick={() => window.location.href = '/buy-pass'} className="bg-orange-600 hover:bg-orange-700">
+            <Button onClick={() => window.location.href = getBuyPassBaseUrl()} className="bg-orange-600 hover:bg-orange-700">
               Buy Packages
             </Button>
           </div>

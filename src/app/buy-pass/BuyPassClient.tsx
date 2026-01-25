@@ -54,13 +54,16 @@ export default function BuyNowPage() {
   const hasTypeParam = !!typeParam && !isStudentType // If typeParam exists and is NOT student, user came from specific page
   const isFromDashboard = !hasTypeParam || isStudentType // If no typeParam OR student type, treat as dashboard flow
 
+  const memberTypeParam = searchParams.get('memberType')
+  const memberTypeFromUrl = memberTypeParam ? memberTypeParam.toUpperCase() : null
+
   // Get user's effective memberType (checks verification status)
   const userMemberType = databaseUser?.memberType || 'MEMBER'
   const effectiveMemberType = getEffectiveMemberType(
     userMemberType,
     databaseUser?.studentVerificationStatus
   )
-  const isStudent = effectiveMemberType === 'STUDENT'
+  const isStudent = effectiveMemberType === 'STUDENT' || memberTypeFromUrl === 'STUDENT'
 
   // OLD FLOW: If user came from specific page (co-learn, cowork, colearn), use specific role packages
   // Skip this for student types - they should use dashboard flow (all packages)
